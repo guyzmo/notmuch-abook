@@ -6,9 +6,9 @@ import os.path
 import sys
 import re
 
-# email.utils.parseaddr() is very slow for some reason. This
-# trivial replacement might be missing important functionality,
-# but it hasn't hurt me yet.
+# email.utils.parseaddr() is very slow for some reason. I'm still
+# using it, though, but I'm considering whether it's necessary. This
+# trivial replacement might be missing important functionality.
 def my_parseaddr(addr):
     parsed = re.split(r'[<>]', addr)
     if len(parsed) == 1:
