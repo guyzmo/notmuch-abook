@@ -1,4 +1,24 @@
 #!/usr/bin/env python
+
+## Filename: notmuch_addresses.py
+## Copyright (C) 2010 Jesse Rosenthal
+## Author: Jesse Rosenthal <jrosenthal@jhu.edu>
+
+## This file is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published
+## by the Free Software Foundation; either version 2, or (at your
+## option) any later version.
+
+## This program is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+
+## You should have received a copy of the GNU General Public License
+## along with GNU Emacs; see the file COPYING.  If not, write to the
+## Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+## Boston, MA 02110-1301, USA.
+  
 from cnotmuch import notmuch
 import ConfigParser
 import email.utils
@@ -8,7 +28,8 @@ import re
 
 # email.utils.parseaddr() is very slow for some reason. I'm still
 # using it, though, but I'm considering whether it's necessary. This
-# trivial replacement might be missing important functionality.
+# trivial replacement might be missing important
+# functionality. Sebastian Spaeth fixed up a problem here.
 def my_parseaddr(addr):
     parsed = re.split(r'[<>]', addr)
     if len(parsed) == 1:
@@ -117,8 +138,9 @@ class NotmuchAddressMatcher(object):
 
 
     def _get_matching_messages(self):
-        """
-        """
+        # Credit to Sebastian Spaeth for figuring out how to query
+        # notmuch in a more efficient way.
+
         notmuch_db = notmuch.Database(self.db_path)
         query_string = "(from:" + self.email
 
