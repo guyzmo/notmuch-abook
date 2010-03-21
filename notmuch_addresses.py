@@ -18,6 +18,17 @@
 ## along with GNU Emacs; see the file COPYING.  If not, write to the
 ## Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
 ## Boston, MA 02110-1301, USA.
+
+## NOTE: This script requires cnotmuch by Sebastian Spaeth, described here:
+##
+## id:87634u3t0q.fsf@SSpaeth.de
+##
+## and available via mercurial clone:
+##
+## hg clone https://spaetz@bitbucket.org/spaetz/cnotmuch/
+##
+## That, in turn, requires the notmuch shared library. make sure to
+## read spaetz's email.
   
 from cnotmuch import notmuch
 import ConfigParser
