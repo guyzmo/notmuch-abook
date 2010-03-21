@@ -133,18 +133,20 @@ class NotmuchAddressMatcher(object):
             self.other_emails = []
 
         self.query_name = query_name
-        if not match_function:
-            self.match_function = self.trivial_match_function()
+        if match_function:
+            self.match_fucntion = match_function(self.query_name)
+        else:
+            self.match_function = self.trivial_match_function(self.query_name)
         self.matches = []
 
-    def trivial_match_function(self):
+    def trivial_match_function(self, name):
         """ This outputs a trivial matching function (case
         independent, same starting letters). More sophisticated ones
         could be developed. It is the default match function, but can
         be overwritten by the user.
         """
         def output (x):
-            return x.lower().startswith(self.query_name.lower())
+            return x.lower().startswith(name)
         return output
 
 
