@@ -115,8 +115,8 @@ class EmailsWithNames(object):
                 for e in email_list]
 
 class NotmuchAddressMatcher(object):
-    """A simple address matcher, based on information for a nutmuch
-    user.  information from the user's $HOME/.notmuch-config file.
+    """A simple address matcher, based on information information from
+    the user's $HOME/.notmuch-config file.
     """
     
     def __init__(self, query_name, match_function=None):
