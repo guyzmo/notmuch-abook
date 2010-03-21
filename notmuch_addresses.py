@@ -146,7 +146,7 @@ class NotmuchAddressMatcher(object):
         be overwritten by the user.
         """
         def output (x):
-            return x.lower().startswith(name)
+            return x.lower().startswith(name.lower())
         return output
 
 
