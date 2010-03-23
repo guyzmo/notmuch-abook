@@ -186,7 +186,7 @@ class NotmuchAddressMatcher(object):
                     or 
                     self.match_function(mail)):
                     
-                    emails.add_email_and_name(addr[1], addr[0])
+                    emails.add_email_and_name(mail, addr[0])
      
         self.matches = emails.sorted_email_and_names_list()
 
