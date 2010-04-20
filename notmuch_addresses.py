@@ -19,19 +19,20 @@
 ## Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
 ## Boston, MA 02110-1301, USA.
 
-## NOTE: This script requires cnotmuch by Sebastian Spaeth, described here:
+## NOTE: This script requires the notmuch python bindings by Sebastian
+## Spaeth, described here:
 ##
-## id:87634u3t0q.fsf@SSpaeth.de
+## id:87aaszmdca.fsf@SSpaeth.de
 ##
-## and available via mercurial clone:
+## and available via git:
 ##
-## hg clone https://spaetz@bitbucket.org/spaetz/cnotmuch/
+## http://github.com/spaetz/python-notmuch
 ##
-## That, in turn, requires the notmuch shared library. make sure to
-## read spaetz's email.
+## This also requires notmuch >= 0.2, which will install the shared library.
   
-from cnotmuch import notmuch
+import notmuch
 import ConfigParser
+import optparse
 import email.utils
 import os.path
 import sys
