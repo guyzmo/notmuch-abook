@@ -175,10 +175,8 @@ class NotmuchAddressMatcher(object):
             for h in ('to', 'cc', 'bcc'):
                 v = m.get_header(h)
                 if v > '':
-                    addrs = addrs + v.split(',')
-            parsed_addrs = [#my_parseaddr(addr)  
-                            email.utils.parseaddr(addr)
-                            for addr in addrs]
+                    addrs.append(v)
+                    parsed_addrs = email.utils.getaddresses(addrs)
             for addr in parsed_addrs:
                 mail = addr[1].lower()
                 split_names = addr[0].split(" ")
