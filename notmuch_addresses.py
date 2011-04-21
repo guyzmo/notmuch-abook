@@ -121,7 +121,7 @@ class NotmuchAddressMatcher(object):
 
         self.query_name = query_name
         if match_function:
-            self.match_fucntion = match_function(self.query_name)
+            self.match_function = match_function(self.query_name)
         else:
             self.match_function = self.trivial_match_function(self.query_name)
         self.matches = []
