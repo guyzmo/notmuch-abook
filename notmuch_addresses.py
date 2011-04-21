@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 ## Filename: notmuch_addresses.py
-## Copyright (C) 2010 Jesse Rosenthal
+## Copyright (C) 2010-11 Jesse Rosenthal
 ## Author: Jesse Rosenthal <jrosenthal@jhu.edu>
 
 ## This file is free software; you can redistribute it and/or modify
@@ -14,21 +14,7 @@
 ## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ## GNU General Public License for more details.
 
-## You should have received a copy of the GNU General Public License
-## along with GNU Emacs; see the file COPYING.  If not, write to the
-## Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-## Boston, MA 02110-1301, USA.
-
-## NOTE: This script requires the notmuch python bindings by Sebastian
-## Spaeth, described here:
-##
-## id:87aaszmdca.fsf@SSpaeth.de
-##
-## and available via git:
-##
-## http://github.com/spaetz/python-notmuch
-##
-## This also requires notmuch >= 0.2, which will install the shared library.
+## NOTE: This script requires the notmuch python bindings.
   
 import notmuch
 import ConfigParser
