@@ -164,10 +164,13 @@ class NotmuchAddressMatcher(object):
                     addrs.append(v)
                     parsed_addrs = email.utils.getaddresses(addrs)
             for addr in parsed_addrs:
-                mail = addr[1].lower()
-                split_names = addr[0].split(" ")
+                full_name = addr[0]
+                split_names = full_name.split(" ")
+                mail = addr[1]
                 if (len([name for name in split_names 
                          if self.match_function(name)]) > 0
+                    or 
+                    self.match_function(full_name)
                     or 
                     self.match_function(mail)):
                     
