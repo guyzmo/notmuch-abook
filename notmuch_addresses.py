@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2.6
 
 ## Filename: notmuch_addresses.py
 ## Copyright (C) 2010-11 Jesse Rosenthal
@@ -15,176 +15,208 @@
 ## GNU General Public License for more details.
 
 ## NOTE: This script requires the notmuch python bindings.
-  
+
+import argparse
 import notmuch
+import sqlite3
 import ConfigParser
 import optparse
+import email.parser
 import email.utils
 import os.path
+import time
 import sys
 import re
 
-# email.utils.parseaddr() is very slow for some reason. I'm still
-# using it, though, but I'm considering whether it's necessary. This
-# trivial replacement might be missing important
-# functionality. Sebastian Spaeth fixed up a problem here.
-def my_parseaddr(addr):
-    parsed = re.split(r'[<>]', addr)
-    if len(parsed) == 1:
-        return ('', parsed[0].strip())
-    else:
-        return (parsed[0].strip("\"\t "), parsed[1].strip())
+
+class NotMuchConfig(object):
+    def __init__(self, nm_path):
+        self.path = os.path.expanduser(nm_path)
+        self.config = ConfigParser.ConfigParser()
+        self.config.read(self.path)
+
+    def get(self, section, key):
+        return self.config.get(section, key)
 
 
-class EmailsWithNames(object):
-    """A collection of email addresses, each with an arbitrary amount
-    of associated real names. This class can return the best-choice
-    real name for a given email address (based on frequency) as well
-    as a list email addresses (with or without best-choice real
-    names), sorted by frequency.
-    """
-    
+class MailParser(object):
     def __init__(self):
-        self.emails = {}
+        self.addresses = dict()
 
-    def add_email_and_name(self, email, real_name):
-        if email in self.emails:
-            if real_name in self.emails[email]:
-                self.emails[email][real_name] += 1
-            else:
-                self.emails[email][real_name] = 1
+    def parse_mail(self, m):
+        """
+        function used to extract headers from a email.message or notmuch.message email object
+        yields address tuples
+        """
+        addrs = []
+        if isinstance(m, email.message.Message):
+            get_header = m.get
         else:
-            self.emails[email] = {real_name:1}
+            get_header = m.get_header
+        for h in ('to', 'from', 'cc', 'bcc'):
+            v = get_header(h)
+            if v > '':
+                addrs.append(v)
+        for addr in email.utils.getaddresses(addrs):
+            if addr[1] != "" and not addr[1] in self.addresses.keys():
+                addr = (addr[0].strip("'").strip('"').strip(" "), addr[1])
+                self.addresses[addr[1]] = addr[0]
+                for w in addr[0].split(" ") + [addr[1]]:
+                    yield addr
 
-    def email_freq(self, email):
-        if email in self.emails:
-            return sum(self.emails[email].values())
-        else:
-            return 0
-
-    def name_freq(self, email, real_name):
-        if email in self.emails:
-            if real_name in self.emails[email]:
-                return self.emails[email][real_name]
-            else:
-                return 0
-        else:
-            raise Exception
-
-    def assoc_name(self, email):
-        names = self.emails[email].keys()
-        names.sort(key=lambda(name): self.name_freq(email, name),
-                   reverse=True)
-        # We don't want to return an empty name if we can help it, so
-        # first we check to see if the most frequent name is the empty
-        # string.
-        #
-        # If it's not empty, cool.
-        if len(names[0]) > 0:
-            return names[0]
-        # If so, we check to see if it's the only possibility.
-        else:
-            # If it is, we're stuck with it...
-            if len(names) == 1:
-                return names[0]
-            # ...but if not, we can go with the second option.
-            else:
-                return names[1]
-
-    def sorted_email_list(self):
-        return sorted(self.emails.keys(), 
-                      key=self.email_freq,
-                      reverse=True)
-
-    def sorted_email_and_names_list(self):
-        email_list = self.sorted_email_list()
-        return [email.utils.formataddr((self.assoc_name(e), e))
-                for e in email_list]
-
-class NotmuchAddressMatcher(object):
-    """A simple address matcher, based on information information from
+class NotmuchAddressGetter(object):
+    """Get all addresses from notmuch, based on information information from
     the user's $HOME/.notmuch-config file.
     """
-    
-    def __init__(self, query_name, match_function=None):
+
+    def __init__(self, config):
         """
         """
-        config = ConfigParser.ConfigParser()
-        config.read(os.path.expanduser("~/.notmuch-config"))
         self.db_path = config.get("database", "path")
-        self.email = config.get("user", "primary_email")
-        try:
-            other_emails=config.get("user", "other_email").split(";")
-            self.other_emails=[addr.strip() for addr in other_emails if addr]
-        except ConfigParser.NoOptionError:
-            self.other_emails = []
+        self._mp = MailParser()
 
-        self.query_name = query_name
-        if match_function:
-            self.match_function = match_function(self.query_name)
-        else:
-            self.match_function = self.trivial_match_function(self.query_name)
-        self.matches = []
-
-    def trivial_match_function(self, name):
-        """ This outputs a trivial matching function (case
-        independent, same starting letters). More sophisticated ones
-        could be developed. It is the default match function, but can
-        be overwritten by the user.
-        """
-        def output (x):
-            return x.lower().startswith(name.lower())
-        return output
-
-
-    def _get_matching_messages(self):
-        # Credit to Sebastian Spaeth for figuring out how to query
-        # notmuch in a more efficient way.
-
+    def _get_all_messages(self):
         notmuch_db = notmuch.Database(self.db_path)
-        query_string = "(from:" + self.email
-
-        for addr in self.other_emails:
-            query_string += (" OR from:" + addr)
-
-        query_string += ") and to:" + self.query_name + "*"
-
-        query = notmuch.Query(notmuch_db, query_string)
+        query = notmuch.Query(notmuch_db, "not tag:junk AND not folder:drafts AND not tag:deleted")
         return query.search_messages()
 
-
-    def generate_matches(self):
-        msgs = self._get_matching_messages()
-        emails = EmailsWithNames()
+    def generate(self):
+        msgs = self._get_all_messages()
         for m in msgs:
-            addrs = []
-            for h in ('to', 'cc', 'bcc'):
-                v = m.get_header(h)
-                if v > '':
-                    addrs.append(v)
-                    parsed_addrs = email.utils.getaddresses(addrs)
-            for addr in parsed_addrs:
-                full_name = addr[0]
-                split_names = full_name.split(" ")
-                mail = addr[1]
-                if (len([name for name in split_names 
-                         if self.match_function(name)]) > 0
-                    or 
-                    self.match_function(full_name)
-                    or 
-                    self.match_function(mail)):
-                    
-                    emails.add_email_and_name(mail, addr[0])
-     
-        self.matches = emails.sorted_email_and_names_list()
+            for addr in self._mp.parse_mail(m):
+                yield addr
+
+
+class SQLiteStorage():
+    """SQL Storage backend"""
+    def __init__(self, config):
+        self.__path = config.get("addressbook", "path")
+
+    def connect(self):
+        """
+        creates a new connection to the database and returns a cursor
+        throws an error if the database does not exists
+        """
+        if not os.path.exists(self.__path):
+            raise IOError("Database '%s' does not exists" % (self.__path,))
+        return sqlite3.connect(self.__path, isolation_level="DEFERRED")
+
+    def create(self):
+        """
+        create a new database
+        """
+        if os.path.exists(self.__path):
+            raise IOError("Can't create database at '%s'. File exists." % (self.__path,))
+        else:
+            with sqlite3.connect(self.__path) as c:
+                cur = c.cursor()
+                cur.execute("CREATE VIRTUAL TABLE AddressBook USING fts4(Name, Address)")
+                cur.execute("CREATE VIEW AddressBookView AS SELECT * FROM addressbook")
+                cur.executescript("CREATE TRIGGER insert_into_ab INSTEAD OF INSERT ON AddressBookView "+
+                                  "BEGIN"+
+                                  " SELECT RAISE(ABORT, 'column name is not unique')"+
+                                  "   FROM addressbook"+
+                                  "  WHERE name = new.name"+
+                                  "     OR address = new.address;"+
+                                  " INSERT INTO addressbook VALUES(new.name, new.address);"+
+                                  "END;")
+
+    def init(self, gen):
+        """
+        populates the database with all addresses from address book
+        """
+        n = 0
+        with self.connect() as cur:
+            cur.execute("PRAGMA synchronous = OFF")
+            for elt in gen():
+                try:
+                    cur.execute("INSERT INTO AddressBookView VALUES(?,?)", elt)
+                    n += 1
+                except sqlite3.IntegrityError:
+                    pass
+            cur.commit()
+        return n
+
+    def update(self, addr):
+        """
+        updates the database with a new mail address tuple
+        """
+        try:
+            with self.connect() as c:
+                cur = c.cursor()
+                cur.execute("INSERT INTO AddressBookView VALUES(?,?)", addr)
+                return True
+        except sqlite3.IntegrityError:
+            return False
+
+    def lookup(self, match):
+        """
+        lookup an address from the given match in database
+        """
+        with self.connect() as c:
+            cur = c.cursor()
+            for res in cur.execute("SELECT * FROM addressBook WHERE name MATCH '%s*' UNION SELECT * FROM addressBook WHERE address MATCH '%s*'""" % (match, match)).fetchall():
+                yield res
+
+
+def run():
+    parser = argparse.ArgumentParser(prog=sys.argv[0], description="""Notmuch Addressbook utility""")
+    parser.add_argument("-v", "--verbose",
+                        dest="verbose",
+                        action="store_true",
+                        help="Show full stacktraces on error")
+    parser.add_argument("-c", "--config",
+                        dest="config",
+                        action="store",
+                        help="Path to notmuch configuration file",
+                        default="~/.notmuch-config")
+
+    subparsers = parser.add_subparsers(title="Commands", help="Command description", description="")
+    create_cmd = subparsers.add_parser("create", help="Create a new database.")
+    update_cmd = subparsers.add_parser("update", help="Update the database with a new mail (on stdin).")
+    lookup_cmd = subparsers.add_parser("lookup", help="Lookup an address in the database.")
+    lookup_cmd.add_argument(dest="match", help="Match string to be looked up.")
+
+    def create_act(args, db, cf):
+        db.create()
+        nm_mailgetter = NotmuchAddressGetter(cf)
+        n = db.init(nm_mailgetter.generate)
+        print "added %d addresses" % n
+
+    def update_act(args, db, cf):
+        n = 0
+        m = email.message_from_file(sys.stdin)
+        for addr in MailParser().parse_mail(m):
+            if db.update(addr):
+                n += 1
+        print "added %d addresses" % n
+
+    def lookup_act(args, db, cf):
+        for addr in db.lookup(args.match):
+            if addr[0] != "":
+                print(addr[0]+" <"+addr[1]+">")
+            else:
+                print(addr[1])
+
+    create_cmd.set_defaults(func=create_act)
+    update_cmd.set_defaults(func=update_act)
+    lookup_cmd.set_defaults(func=lookup_act)
+
+    args = parser.parse_args()
+    try:
+        cf = NotMuchConfig(os.path.expanduser(args.config))
+        if cf.get("addressbook", "backend") == "sqlite3":
+            db = SQLiteStorage(cf)
+        else:
+            print "Database backend '%s' is not implemented." % cf.get("addressbook", "backend")
+        args.func(args, db, cf)
+    except Exception as exc:
+        if args.verbose:
+            import traceback
+            traceback.print_exc()
+        else:
+            print exc
 
 if __name__ == '__main__':
+    run()
 
-    if len(sys.argv) < 2:
-        print "You must enter a name query"
-    else:
-        name = " ".join(sys.argv[1:])
-        matcher = NotmuchAddressMatcher(name)
-        matcher.generate_matches()
-
-        for elem in matcher.matches: print (elem)
