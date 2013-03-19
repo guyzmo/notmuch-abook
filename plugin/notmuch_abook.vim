@@ -62,11 +62,3 @@ endfun
 au FileType mail call InitAddressBook()
 au FileType mail set completefunc=CompleteAddressBook
 
-augroup nm_ab
-    au!
-    au FileType mail exe 'nmap '.s:highligh.' :call HighLightenment()<CR>'
-    au FileType mail exe 'nmap '.s:cuthere.'  O'.s:CutHereBeg.'<CR>'.s:CutHereEnd.'<ESC>^O'
-    au FileType mail exe 'vmap '.s:cuthere.'  :s/\(\_.*\)/'.s:CutHereBeg.'\1'.s:CutHereEnd.'<CR>'
-    au FileType mail inoremap <C-Space> <C-x><C-u>
-    au FileType mail inoremap <C-@> <C-Space>
-augroup END
