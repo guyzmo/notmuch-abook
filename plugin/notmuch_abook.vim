@@ -12,20 +12,23 @@ if !has('python')
     finish
 endif
 
+let g:notmuchconfig = "~/.notmuch-config"
+
+let s:scriptpath = expand('<sfile>:p:h')
+
 " Init link to Addressbook database
 fun! InitAddressBook()
-python<<EOS
-import vim
-import sys
-import os.path
-curpath = vim.eval("getcwd()")
-libpath = os.path.join(os.path.dirname(os.path.dirname(vim.eval("expand('<sfile>:p')"))), 'pylibs')
-sys.path = [os.path.dirname(libpath), libpath, curpath] + sys.path
+    py import vim
+    py import sys
+    py import os.path
 
-import notmuch_addresses
-cfg = notmuch_addresses.NotMuchConfig(os.path.expanduser("~/.notmuch-config"))
-db = notmuch_addresses.SQLiteStorage(cfg) if cfg.get("addressbook", "backend") == "sqlite3" else None
-EOS
+    py curpath = vim.eval("getcwd()")
+    py libpath = os.path.join(os.path.abspath(os.path.join(vim.eval("s:scriptpath"), '..')), 'pylibs')
+    py sys.path = [os.path.dirname(libpath), libpath, curpath] + sys.path
+
+    py import notmuch_addresses
+    py cfg = notmuch_addresses.NotMuchConfig(os.path.expanduser(vim.eval("g:notmuchconfig")))
+    py db = notmuch_addresses.SQLiteStorage(cfg) if cfg.get("addressbook", "backend") == "sqlite3" else None
 endfun
 
 " Addressbook completion
@@ -35,10 +38,9 @@ fun! CompleteAddressBook(findstart, base)
         if a:findstart
         " locate the start of the word
             let start = col('.') - 1
-            while start > 0 && curline[start - 2] != ":"
+            while start > 0 && curline[start - 2] != ":" && curline[start - 2] != ","
                 let start -= 1
             endwhile
-            let failed = append(line('.'), a:base[:-2])
             return start
         else
 python << EOP
@@ -49,8 +51,8 @@ if db:
             addr = addr[1]
         else:
             addr = addr[0]+" <"+addr[1]+">"
-        vim.command(('call complete_add("%s")' % addr.replace('"', "")).encode( encoding ))
         vim.command('call complete_check()')
+        vim.command(('call complete_add("%s")' % addr.replace('"', "")).encode( encoding ))
 else:
     vim.command('echoerr "No backend found."')
 EOP
@@ -59,6 +61,9 @@ EOP
     endif
 endfun
 
-au FileType mail call InitAddressBook()
-au FileType mail set completefunc=CompleteAddressBook
+augroup notmuchabook
+    au!
+    au FileType mail call InitAddressBook()
+    au FileType mail set completefunc=CompleteAddressBook
+augroup END
 
