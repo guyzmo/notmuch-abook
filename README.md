@@ -23,6 +23,16 @@ ln -s $HOME/.vim/bundle/notmuch-abook/pylibs/notmuch_addresses.py ~/bin/notmuch-
 CONFIGURATION
 -------------
 
+Open notmuch configuration file (usually $HOME/.notmuch-config) and add:
+
+```
+[addressbook]
+path=/home/USER/.notmuch-abook.db
+backend=sqlite3
+```
+
+where USER is your username (or at any other place)
+
 In your favorite mail filter program, add a rule such as (for procmail), so all new mail will be parsed:
 
 ```
@@ -33,7 +43,7 @@ In your favorite mail filter program, add a rule such as (for procmail), so all 
 USAGE
 -----
 
-For the first time, you shall launch the script as follows to create the addresses database:
+For the first time, you shall launch the script as follows to create the addresses database (it takes ~20 seconds for 10000 mails):
 
 ```
 python $HOME/.vim/bundle/notmuch-abook/pylibs/notmuch_addresses.py create
