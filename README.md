@@ -9,6 +9,22 @@ DEPENDENCES
 INSTALL
 -------
 
+* Standalone install
+
+if you do not want to use the vim script file, you can install the module as follows:
+
+```
+python setup.py install
+```
+
+or using:
+
+```
+pip install notmuch_abook
+```
+
+* Vimscript install
+
 Use vundle to install this script, add to your vimrc:
 
 ```
