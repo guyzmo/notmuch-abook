@@ -26,9 +26,9 @@ fun! InitAddressBook()
     py libpath = os.path.join(os.path.abspath(os.path.join(vim.eval("s:scriptpath"), '..')), 'pylibs')
     py sys.path = [os.path.dirname(libpath), libpath, curpath] + sys.path
 
-    py import notmuch_addresses
-    py cfg = notmuch_addresses.NotMuchConfig(os.path.expanduser(vim.eval("g:notmuchconfig")))
-    py db = notmuch_addresses.SQLiteStorage(cfg) if cfg.get("addressbook", "backend") == "sqlite3" else None
+    py import notmuch_abook
+    py cfg = notmuch_abook.NotMuchConfig(os.path.expanduser(vim.eval("g:notmuchconfig")))
+    py db = notmuch_abook.SQLiteStorage(cfg) if cfg.get("addressbook", "backend") == "sqlite3" else None
 endfun
 
 " Addressbook completion
