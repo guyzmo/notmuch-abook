@@ -60,8 +60,8 @@ If you can't use procmail (eg if you are using offlineimap) then you could put t
 
 ```
 # first update notmuch-abook
-for file in $($HOME/bin/notmuchwork search --output=files tag:new) ; do
-    cat $file | $HOME/bin/notmuch-abook -c $HOME/.notmuch-config-work update
+for file in $(notmuch search --output=files tag:new) ; do
+    cat $file | $HOME/bin/notmuch-abook update
 done
 ```
 
