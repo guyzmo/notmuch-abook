@@ -56,6 +56,15 @@ In your favorite mail filter program, add a rule such as (for procmail), so all 
 | python $HOME/.vim/bundle/notmuch-abook/pylibs/notmuch_addresses.py update
 ```
 
+If you can't use procmail (eg if you are using offlineimap) then you could put the following few lines at the start of the [post-new hook](http://notmuchmail.org/manpages/notmuch-hooks-5/) (*before* you remove the new tag).
+
+```
+# first update notmuch-abook
+for file in $($HOME/bin/notmuchwork search --output=files tag:new) ; do
+    cat $file | $HOME/bin/notmuch-abook -c $HOME/.notmuch-config-work update
+done
+```
+
 USAGE
 -----
 
