@@ -175,6 +175,10 @@ def run():
     create_cmd = subparsers.add_parser("create", help="Create a new database.")
     update_cmd = subparsers.add_parser("update", help="Update the database with a new mail (on stdin).")
     lookup_cmd = subparsers.add_parser("lookup", help="Lookup an address in the database.")
+    lookup_cmd.add_argument("-a", "--abook-output",
+                            dest="abook_output",
+                            action="store_true",
+                            help="Output addresses in the class abook format.")
     lookup_cmd.add_argument(dest="match", help="Match string to be looked up.")
 
     def create_act(args, db, cf):
@@ -193,10 +197,13 @@ def run():
 
     def lookup_act(args, db, cf):
         for addr in db.lookup(args.match):
-            if addr[0] != "":
-                print(addr[0]+" <"+addr[1]+">")
+            if args.abook_output:
+                print(addr[1] + "\t" + addr[0])
             else:
-                print(addr[1])
+                if addr[0] != "":
+                    print(addr[0]+" <"+addr[1]+">")
+                else:
+                    print(addr[1])
 
     create_cmd.set_defaults(func=create_act)
     update_cmd.set_defaults(func=update_act)
