@@ -66,6 +66,6 @@ endfun
 augroup notmuchabook
     au!
     au FileType mail call InitAddressBook()
-    au FileType mail set completefunc=CompleteAddressBook
+    au FileType mail setlocal completefunc=CompleteAddressBook
 augroup END
 
