@@ -12,7 +12,9 @@ if !has('python')
     finish
 endif
 
-let g:notmuchconfig = "~/.notmuch-config"
+if !exists("g:notmuchconfig")
+    let g:notmuchconfig = "~/.notmuch-config"
+endif
 
 let s:scriptpath = expand('<sfile>:p:h')
 
