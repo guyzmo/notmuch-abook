@@ -116,8 +116,7 @@ class SQLiteStorage():
                                   "BEGIN"+
                                   " SELECT RAISE(ABORT, 'column name is not unique')"+
                                   "   FROM addressbook"+
-                                  "  WHERE name = new.name"+
-                                  "     OR address = new.address;"+
+                                  "  WHERE address = new.address;"+
                                   " INSERT INTO addressbook VALUES(new.name, new.address);"+
                                   "END;")
 
