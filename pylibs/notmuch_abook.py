@@ -160,6 +160,17 @@ class SQLiteStorage():
                     % match).fetchall():
                 yield res
 
+    def change_name(self, address, name):
+        """
+        Change the name associated with an email address
+        """
+        with self.connect() as c:
+            cur = c.cursor()
+            cur.execute(
+                "UPDATE AddressBook SET name = '%s' WHERE address = '%s'" %
+                (name, address))
+            return True
+
 
 def run():
     parser = argparse.ArgumentParser(prog=sys.argv[0], description="""Notmuch Addressbook utility""")
@@ -182,6 +193,12 @@ def run():
                             action="store_true",
                             help="Output addresses in the class abook format.")
     lookup_cmd.add_argument(dest="match", help="Match string to be looked up.")
+    changename_cmd = subparsers.add_parser("changename",
+                     help="Change the name associated with an email address")
+    changename_cmd.add_argument(dest="address",
+                     help="Email address to change associated name of.")
+    changename_cmd.add_argument(dest="name",
+                     help="New name to associate with email address.")
 
     def create_act(args, db, cf):
         db.create()
@@ -207,9 +224,13 @@ def run():
                 else:
                     print(addr[1])
 
+    def changename_act(args, db, cf):
+        db.change_name(args.address, args.name)
+
     create_cmd.set_defaults(func=create_act)
     update_cmd.set_defaults(func=update_act)
     lookup_cmd.set_defaults(func=lookup_act)
+    changename_cmd.set_defaults(func=changename_act)
 
     args = parser.parse_args()
     try:
