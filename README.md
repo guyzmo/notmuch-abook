@@ -49,6 +49,12 @@ backend=sqlite3
 
 where USER is your username (or at any other place)
 
+If you use a non-default notmuch configuration file, you can set it in your vimrc with:
+
+```
+let g:notmuchconfig = "~/.notmuch-config-custom"
+```
+
 In your favorite mail filter program, add a rule such as (for procmail), so all new mail will be parsed:
 
 ```

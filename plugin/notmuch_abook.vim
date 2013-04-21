@@ -12,7 +12,9 @@ if !has('python')
     finish
 endif
 
-let g:notmuchconfig = "~/.notmuch-config"
+if !exists("g:notmuchconfig")
+    let g:notmuchconfig = "~/.notmuch-config"
+endif
 
 let s:scriptpath = expand('<sfile>:p:h')
 
@@ -64,6 +66,6 @@ endfun
 augroup notmuchabook
     au!
     au FileType mail call InitAddressBook()
-    au FileType mail set completefunc=CompleteAddressBook
+    au FileType mail setlocal completefunc=CompleteAddressBook
 augroup END
 
