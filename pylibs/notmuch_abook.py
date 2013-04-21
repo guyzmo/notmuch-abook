@@ -155,7 +155,9 @@ class SQLiteStorage():
         """
         with self.connect() as c:
             cur = c.cursor()
-            for res in cur.execute("SELECT * FROM addressBook WHERE name MATCH '%s*' UNION SELECT * FROM addressBook WHERE address MATCH '%s*'""" % (match, match)).fetchall():
+            for res in cur.execute(
+                    "SELECT * FROM AddressBook WHERE AddressBook MATCH '%s'"
+                    % match).fetchall():
                 yield res
 
 
