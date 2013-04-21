@@ -45,8 +45,8 @@ class MailParser(object):
 
     def parse_mail(self, m):
         """
-        function used to extract headers from a email.message or notmuch.message email object
-        yields address tuples
+        function used to extract headers from a email.message or
+        notmuch.message email object yields address tuples
         """
         addrs = []
         if isinstance(m, email.message.Message):
@@ -55,14 +55,15 @@ class MailParser(object):
             get_header = m.get_header
         for h in ('to', 'from', 'cc', 'bcc'):
             v = get_header(h)
-            if v > '':
+            if v:
                 addrs.append(v)
         for addr in email.utils.getaddresses(addrs):
-            if addr[1] != "" and not addr[1] in self.addresses.keys():
-                addr = (addr[0].strip("'").strip('"').strip(" "), addr[1])
-                self.addresses[addr[1]] = addr[0]
-                for w in addr[0].split(" ") + [addr[1]]:
-                    yield addr
+            name = addr[0].strip('; ')
+            address = addr[1].lower().strip(';\'" ')
+            if (address and address not in self.addresses):
+                self.addresses[address] = name
+                yield (name, address)
+
 
 class NotmuchAddressGetter(object):
     """Get all addresses from notmuch, based on information information from
