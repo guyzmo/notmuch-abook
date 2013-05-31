@@ -156,7 +156,7 @@ class SQLiteStorage():
         with self.connect() as c:
             cur = c.cursor()
             for res in cur.execute(
-                    "SELECT * FROM AddressBook WHERE AddressBook MATCH '%s'"
+                """SELECT * FROM AddressBook WHERE AddressBook MATCH '"%s*"'"""
                     % match).fetchall():
                 yield res
 
