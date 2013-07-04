@@ -39,7 +39,8 @@ setup(name='notmuch_abook',
       zip_safe=False,
       install_requires=[
           # -*- Extra requirements: -*-
-          "pysqlite"
+          "pysqlite",
+          "docopt"
       ],
       entry_points="""
       # -*- Entry points: -*-
