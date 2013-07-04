@@ -15,25 +15,51 @@
 ## GNU General Public License for more details.
 
 ## NOTE: This script requires the notmuch python bindings.
+"""
+Notmuch Addressbook utility
 
-import argparse
+Usage:
+  notmuch_abook.py [-hv] [-c CONFIG] create
+  notmuch_abook.py [-hv] [-c CONFIG] update
+  notmuch_abook.py [-hv] [-c CONFIG] lookup [--abook-output] <match>
+  notmuch_abook.py [-hv] [-c CONFIG] changename <address> <name>
+
+Options:
+  -h --help            Show this help message and exit
+  -v --verbose         Show full stacktraces on error
+  -c CONFIG, --config CONFIG
+                       Path to notmuch configuration file
+  -a --abook-output    Give output in abook compatible format
+
+Commands:
+
+  create              Create a new database.
+  update              Update the database with a new email (on stdin).
+  lookup <match>      Lookup an address in the database.  The match can be
+                      an email address or part of a name.
+  changename <address> <name>
+                      Change the name associated with an email address.
+
+The database to use is set in the notmuch config file.
+"""
+
+import os.path
+import sys
+import docopt
 import notmuch
 import sqlite3
 import ConfigParser
-import optparse
 import email.parser
 import email.utils
-import os.path
-import time
-import sys
-import re
 
 
 class NotMuchConfig(object):
-    def __init__(self, nm_path):
-        self.path = os.path.expanduser(nm_path)
+    def __init__(self, config_file):
+        if config_file is None:
+            config_file = os.environ.get('NOTMUCH_CONFIG', '~/.notmuch_config')
+
         self.config = ConfigParser.ConfigParser()
-        self.config.read(self.path)
+        self.config.read(os.path.expanduser(config_file))
 
     def get(self, section, key):
         return self.config.get(section, key)
@@ -78,7 +104,8 @@ class NotmuchAddressGetter(object):
 
     def _get_all_messages(self):
         notmuch_db = notmuch.Database(self.db_path)
-        query = notmuch.Query(notmuch_db, "not tag:junk AND not folder:drafts AND not tag:deleted")
+        query = notmuch.Query(
+            notmuch_db, "not tag:junk AND not folder:drafts AND not tag:deleted")
         return query.search_messages()
 
     def generate(self):
@@ -107,19 +134,24 @@ class SQLiteStorage():
         create a new database
         """
         if os.path.exists(self.__path):
-            raise IOError("Can't create database at '%s'. File exists." % (self.__path,))
+            raise IOError("Can't create database at '%s'. File exists." %
+                          (self.__path,))
         else:
             with sqlite3.connect(self.__path) as c:
                 cur = c.cursor()
-                cur.execute("CREATE VIRTUAL TABLE AddressBook USING fts4(Name, Address)")
-                cur.execute("CREATE VIEW AddressBookView AS SELECT * FROM addressbook")
-                cur.executescript("CREATE TRIGGER insert_into_ab INSTEAD OF INSERT ON AddressBookView "+
-                                  "BEGIN"+
-                                  " SELECT RAISE(ABORT, 'column name is not unique')"+
-                                  "   FROM addressbook"+
-                                  "  WHERE address = new.address;"+
-                                  " INSERT INTO addressbook VALUES(new.name, new.address);"+
-                                  "END;")
+                cur.execute(
+                    "CREATE VIRTUAL TABLE AddressBook USING fts4(Name, Address)")
+                cur.execute(
+                    "CREATE VIEW AddressBookView AS SELECT * FROM addressbook")
+                cur.executescript(
+                    "CREATE TRIGGER insert_into_ab " +
+                    "INSTEAD OF INSERT ON AddressBookView " +
+                    "BEGIN" +
+                    " SELECT RAISE(ABORT, 'column name is not unique')" +
+                    "   FROM addressbook" +
+                    "  WHERE address = new.address;" +
+                    " INSERT INTO addressbook VALUES(new.name, new.address);" +
+                    "END;")
 
     def init(self, gen):
         """
@@ -172,76 +204,59 @@ class SQLiteStorage():
             return True
 
 
-def run():
-    parser = argparse.ArgumentParser(prog=sys.argv[0], description="""Notmuch Addressbook utility""")
-    parser.add_argument("-v", "--verbose",
-                        dest="verbose",
-                        action="store_true",
-                        help="Show full stacktraces on error")
-    parser.add_argument("-c", "--config",
-                        dest="config",
-                        action="store",
-                        help="Path to notmuch configuration file",
-                        default="~/.notmuch-config")
+def create_act(db, cf):
+    db.create()
+    nm_mailgetter = NotmuchAddressGetter(cf)
+    n = db.init(nm_mailgetter.generate)
+    print "added %d addresses" % n
 
-    subparsers = parser.add_subparsers(title="Commands", help="Command description", description="")
-    create_cmd = subparsers.add_parser("create", help="Create a new database.")
-    update_cmd = subparsers.add_parser("update", help="Update the database with a new mail (on stdin).")
-    lookup_cmd = subparsers.add_parser("lookup", help="Lookup an address in the database.")
-    lookup_cmd.add_argument("-a", "--abook-output",
-                            dest="abook_output",
-                            action="store_true",
-                            help="Output addresses in the class abook format.")
-    lookup_cmd.add_argument(dest="match", help="Match string to be looked up.")
-    changename_cmd = subparsers.add_parser("changename",
-                     help="Change the name associated with an email address")
-    changename_cmd.add_argument(dest="address",
-                     help="Email address to change associated name of.")
-    changename_cmd.add_argument(dest="name",
-                     help="New name to associate with email address.")
 
-    def create_act(args, db, cf):
-        db.create()
-        nm_mailgetter = NotmuchAddressGetter(cf)
-        n = db.init(nm_mailgetter.generate)
+def update_act(db, verbose):
+    n = 0
+    m = email.message_from_file(sys.stdin)
+    for addr in MailParser().parse_mail(m):
+        if db.update(addr):
+            n += 1
+    if verbose:
         print "added %d addresses" % n
 
-    def update_act(args, db, cf):
-        n = 0
-        m = email.message_from_file(sys.stdin)
-        for addr in MailParser().parse_mail(m):
-            if db.update(addr):
-                n += 1
-        print "added %d addresses" % n
 
-    def lookup_act(args, db, cf):
-        for addr in db.lookup(args.match):
-            if args.abook_output:
-                print(addr[1] + "\t" + addr[0])
+def lookup_act(match, abook_output, db):
+    for addr in db.lookup(match):
+        if abook_output:
+            print "%s\t%s" % (addr[1], addr[0])
+        else:
+            if addr[0] != "":
+                print "%s <%s>" % (addr[0], addr[1])
             else:
-                if addr[0] != "":
-                    print(addr[0]+" <"+addr[1]+">")
-                else:
-                    print(addr[1])
+                print(addr[1])
 
-    def changename_act(args, db, cf):
-        db.change_name(args.address, args.name)
 
-    create_cmd.set_defaults(func=create_act)
-    update_cmd.set_defaults(func=update_act)
-    lookup_cmd.set_defaults(func=lookup_act)
-    changename_cmd.set_defaults(func=changename_act)
+def changename_act(address, name, db):
+    db.change_name(address, name)
 
-    args = parser.parse_args()
+
+def run():
+    options = docopt.docopt(__doc__)
+
     try:
-        cf = NotMuchConfig(os.path.expanduser(args.config))
+        cf = NotMuchConfig(options['--config'])
         if cf.get("addressbook", "backend") == "sqlite3":
             db = SQLiteStorage(cf)
         else:
-            print "Database backend '%s' is not implemented." % cf.get("addressbook", "backend")
-        args.func(args, db, cf)
+            print "Database backend '%s' is not implemented." % \
+                cf.get("addressbook", "backend")
+
+        if options['create']:
+            create_act(db, cf)
+        elif options['update']:
+            update_act(db, options['--verbose'])
+        elif options['lookup']:
+            lookup_act(options['<match>'], options['--abook-output'], db)
+        elif options['changename']:
+            db.change_name(options['<address>'], options['<name>'])
     except Exception as exc:
-        if args.verbose:
+        if options['--verbose']:
             import traceback
             traceback.print_exc()
         else:
@@ -249,4 +264,3 @@ def run():
 
 if __name__ == '__main__':
     run()
-
