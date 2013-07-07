@@ -24,13 +24,18 @@ Usage:
   notmuch_abook.py [-hv] [-c CONFIG] lookup [ -f FORMAT ] <match>
   notmuch_abook.py [-hv] [-c CONFIG] changename <address> <name>
   notmuch_abook.py [-hv] [-c CONFIG] export [ -f FORMAT ] [ -s SORT ] [<filename>]
+  notmuch_abook.py [-hv] [-c CONFIG] import [ -f FORMAT ] [ -r ] [<filename>]
 
 Options:
   -h --help                   Show this help message and exit
   -v --verbose                Show full stacktraces on error
   -c CONFIG, --config CONFIG  Path to notmuch configuration file
-  -f FORMAT, --format FORMAT  Format for address output [default: email]
+  -f FORMAT, --format FORMAT  Format for name/address (see below) [default: email]
   -s SORT, --sort SORT        Whether to sort by name or address [default: name]
+  -r, --replace               If present, then replace the current contents with
+                              the imported contents.  If not then merge - add new
+                              addresses, and update the name associated with
+                              existing addresses.
 
 Commands:
 
@@ -41,6 +46,8 @@ Commands:
   changename <address> <name>
                        Change the name associated with an email address.
   export [<filename>]  Export database, to filename if given or to stdout if not.
+  import [<filename>]  Import into database, from filename if given or from stdin
+                       if not.
 
 Valid values for the FORMAT are:
 
@@ -187,14 +194,24 @@ class SQLiteStorage():
             cur.commit()
         return n
 
-    def update(self, addr):
+    def update(self, addr, replace=False):
         """
         updates the database with a new mail address tuple
+
+        replace: if the email address already exists then replace the name with the new name
         """
         try:
             with self.connect() as c:
                 cur = c.cursor()
-                cur.execute("INSERT INTO AddressBookView VALUES(?,?)", addr)
+                if replace:
+                    present = cur.execute("SELECT 1 FROM AddressBook WHERE address = ?", [addr[1]])
+                    if present:
+                        cur.execute(
+                            "UPDATE AddressBook SET name = ? WHERE address = ?", addr)
+                    else:
+                        cur.execute("INSERT INTO AddressBookView VALUES(?,?)", addr)
+                else:
+                    cur.execute("INSERT INTO AddressBookView VALUES(?,?)", addr)
                 return True
         except sqlite3.IntegrityError:
             return False
@@ -233,15 +250,33 @@ class SQLiteStorage():
                 (name, address))
             return True
 
+    def delete_all(self):
+        """
+        Delete all entries in the database (for full re-import)
+        """
+        with self.connect() as c:
+            c.row_factory = sqlite3.Row
+            cur = c.cursor()
+            cur.execute("DELETE FROM AddressBook")
+
 
 def format_address(address, output_format):
     if output_format == 'abook':
         return "%s\t%s" % (address['Address'], address['Name'])
     elif output_format == 'email':
-        if address['name']:
-            return "%s <%s>" % (address['Name'], address['Address'])
-        else:
-            return address['address']
+        return email.utils.formataddr((address['Name'], address['Address']))
+    else:
+        raise InvalidOptionError('Unknown format: %s' % output_format)
+
+
+def decode_line(line, input_format):
+    if input_format == 'abook':
+        address, name = line.split('\t')
+    elif input_format == 'email':
+        name, address = email.utils.parseaddr(line)
+    else:
+        raise InvalidOptionError('Unknown format: %s' % input_format)
+    return name, address
 
 
 def print_address_list(address_list, output_format, out=None):
@@ -258,7 +293,27 @@ def print_address_list(address_list, output_format, out=None):
             return
     else:
         for address in address_list:
-            out.write(format_address(address, output_format))
+            out.write(format_address(address, output_format) + '\n')
+
+
+def import_address_list(db, replace_all, input_format, infile=None):
+    if infile is None:
+        infile = sys.stdin
+    if replace_all:
+        db.delete_all()
+    if input_format == 'csv':
+        try:
+            reader = csv.reader(infile)
+            for row in reader:
+                db.update(row, replace=(not replace_all))
+        except UnicodeEncodeError as e:
+            print >> sys.stderr, "Caught UnicodeEncodeError: %s" % e
+            print >> sys.stderr, "Installing unicodecsv will probably fix this"
+            return
+    else:
+        for line in infile:
+            name_addr = decode_line(line.strip(), input_format)
+            db.update(name_addr, replace=(not replace_all))
 
 
 def create_act(db, cf):
@@ -293,6 +348,17 @@ def export_action(output_format, sort, db, filename=None):
             out.close()
 
 
+def import_action(input_format, replace, db, filename=None):
+    infile = None
+    try:
+        if filename:
+            infile = open(filename, mode='r')
+        import_address_list(db, replace, input_format, infile)
+    finally:
+        if filename:
+            infile.close()
+
+
 def run():
     options = docopt.docopt(__doc__)
 
@@ -318,6 +384,8 @@ def run():
             db.change_name(options['<address>'], options['<name>'])
         elif options['export']:
             export_action(options['--format'], options['--sort'], db, options['<filename>'])
+        elif options['import']:
+            import_action(options['--format'], options['--replace'], db, options['<filename>'])
     except Exception as exc:
         if options['--verbose']:
             import traceback
