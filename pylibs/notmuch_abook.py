@@ -210,6 +210,7 @@ class SQLiteStorage():
         Fetch all entries from the database.
         """
         with self.connect() as c:
+            c.row_factory = sqlite3.Row
             cur = c.cursor()
             for res in cur.execute("SELECT * FROM AddressBook").fetchall():
                 yield res
