@@ -23,7 +23,7 @@ Usage:
   notmuch_abook.py [-hv] [-c CONFIG] update
   notmuch_abook.py [-hv] [-c CONFIG] lookup [ -o FORMAT ] <match>
   notmuch_abook.py [-hv] [-c CONFIG] changename <address> <name>
-  notmuch_abook.py [-hv] [-c CONFIG] export [ -o FORMAT ] [ -s SORT ]
+  notmuch_abook.py [-hv] [-c CONFIG] export [ -o FORMAT ] [ -s SORT ] [-f FILE]
 
 Options:
   -h --help                   Show this help message and exit
@@ -31,6 +31,7 @@ Options:
   -c CONFIG, --config CONFIG  Path to notmuch configuration file
   -o FORMAT, --output FORMAT  Format for address output [default: email]
   -s SORT, --sort SORT        Whether to sort by name or address [default: name]
+  -f FILE, --file FILE        File to read/write from (for import/export)
 
 Commands:
 
@@ -244,10 +245,12 @@ def format_address(address, output_format):
             return address['address']
 
 
-def print_address_list(address_list, output_format):
+def print_address_list(address_list, output_format, out=None):
+    if out is None:
+        out = sys.stdout
     if output_format == 'csv':
         try:
-            writer = csv.writer(sys.stdout)
+            writer = csv.writer(out)
             for address in address_list:
                 writer.writerow((address['Name'], address['Address']))
         except UnicodeEncodeError as e:
@@ -256,7 +259,7 @@ def print_address_list(address_list, output_format):
             return
     else:
         for address in address_list:
-            print format_address(address, output_format)
+            out.write(format_address(address, output_format))
 
 
 def create_act(db, cf):
@@ -280,8 +283,15 @@ def lookup_act(match, output_format, db):
     print_address_list(db.lookup(match), output_format)
 
 
-def export_act(output_format, sort, db):
-    print_address_list(db.fetchall(sort), output_format)
+def export_action(output_format, sort, db, outfile=None):
+    out = None
+    try:
+        if outfile:
+            out = open(outfile, mode='w')
+        print_address_list(db.fetchall(sort), output_format, out)
+    finally:
+        if outfile:
+            out.close()
 
 
 def run():
@@ -308,7 +318,7 @@ def run():
         elif options['changename']:
             db.change_name(options['<address>'], options['<name>'])
         elif options['export']:
-            export_act(options['--output'], options['--sort'], db)
+            export_action(options['--output'], options['--sort'], db, options['--file'])
     except Exception as exc:
         if options['--verbose']:
             import traceback
