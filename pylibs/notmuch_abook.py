@@ -218,10 +218,10 @@ class SQLiteStorage():
 
 def format_address(address, output_format):
     if output_format == 'abook':
-        return "{address}\t{name}".format(address)
+        return "%s\t%s" % (address['Address'], address['Name'])
     elif output_format == 'email':
         if address['name']:
-            return "{name} <{address}>".format(address)
+            return "%s <%s>" % (address['Name'], address['Address'])
         else:
             return address['address']
 
