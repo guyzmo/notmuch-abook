@@ -104,8 +104,7 @@ class NotmuchAddressGetter(object):
 
     def _get_all_messages(self):
         notmuch_db = notmuch.Database(self.db_path)
-        query = notmuch.Query(
-            notmuch_db, "not tag:junk AND not folder:drafts AND not tag:deleted")
+        query = notmuch.Query(notmuch_db, "NOT tag:junk AND NOT folder:drafts AND NOT tag:deleted")
         return query.search_messages()
 
     def generate(self):
@@ -139,10 +138,8 @@ class SQLiteStorage():
         else:
             with sqlite3.connect(self.__path) as c:
                 cur = c.cursor()
-                cur.execute(
-                    "CREATE VIRTUAL TABLE AddressBook USING fts4(Name, Address)")
-                cur.execute(
-                    "CREATE VIEW AddressBookView AS SELECT * FROM addressbook")
+                cur.execute("CREATE VIRTUAL TABLE AddressBook USING fts4(Name, Address)")
+                cur.execute("CREATE VIEW AddressBookView AS SELECT * FROM addressbook")
                 cur.executescript(
                     "CREATE TRIGGER insert_into_ab " +
                     "INSTEAD OF INSERT ON AddressBookView " +
