@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.6
+#!/usr/bin/env python
 
 ## Filename: notmuch_addresses.py
 ## Copyright (C) 2010-11 Jesse Rosenthal
