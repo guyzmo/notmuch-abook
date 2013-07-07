@@ -21,14 +21,14 @@ Notmuch Addressbook utility
 Usage:
   notmuch_abook.py [-hv] [-c CONFIG] create
   notmuch_abook.py [-hv] [-c CONFIG] update
-  notmuch_abook.py [-hv] [-c CONFIG] lookup [--output (abook | email)] <match>
+  notmuch_abook.py [-hv] [-c CONFIG] lookup [ -o FORMAT ] <match>
   notmuch_abook.py [-hv] [-c CONFIG] changename <address> <name>
 
 Options:
   -h --help                   Show this help message and exit
   -v --verbose                Show full stacktraces on error
   -c CONFIG, --config CONFIG  Path to notmuch configuration file
-  -o OUTPUT, --output OUTPUT  Format for address output [default: email]
+  -o FORMAT, --output FORMAT  Format for address output [default: email]
 
 Commands:
 
@@ -58,6 +58,12 @@ import sqlite3
 import ConfigParser
 import email.parser
 import email.utils
+
+VALID_OUTPUT_FORMATS = ['abook', 'email']
+
+
+class InvalidOptionError(Exception):
+    """An option wasn't valid."""
 
 
 class NotMuchConfig(object):
@@ -248,6 +254,9 @@ def lookup_act(match, output_format, db):
 
 def run():
     options = docopt.docopt(__doc__)
+
+    if options['--output'] not in VALID_OUTPUT_FORMATS:
+        raise InvalidOptionError('%s is not a valid output option.' % options['--output'])
 
     try:
         cf = NotMuchConfig(options['--config'])
