@@ -45,6 +45,7 @@ Valid values for the OUTPUT are:
 
 * abook - Give output in abook compatible format so it can be easily parsed
           by other programs.  The format is EMAIL<Tab>NAME
+* csv   - Give output as CSV (comma separated values). NAME,EMAIL
 * email - Give output in a format that can be used when composing an email.
           So NAME <EMAIL>
 
@@ -60,8 +61,13 @@ import sqlite3
 import ConfigParser
 import email.parser
 import email.utils
+# use unicode csv if available
+try:
+    import unicodecsv as csv
+except ImportError:
+    import csv
 
-VALID_OUTPUT_FORMATS = ['abook', 'email']
+VALID_OUTPUT_FORMATS = ['abook', 'csv', 'email']
 
 
 class InvalidOptionError(Exception):
@@ -239,8 +245,18 @@ def format_address(address, output_format):
 
 
 def print_address_list(address_list, output_format):
-    for address in address_list:
-        print format_address(address, output_format)
+    if output_format == 'csv':
+        try:
+            writer = csv.writer(sys.stdout)
+            for address in address_list:
+                writer.writerow((address['Name'], address['Address']))
+        except UnicodeEncodeError as e:
+            print >> sys.stderr, "Caught UnicodeEncodeError: %s" % e
+            print >> sys.stderr, "Installing unicodecsv will probably fix this"
+            return
+    else:
+        for address in address_list:
+            print format_address(address, output_format)
 
 
 def create_act(db, cf):
