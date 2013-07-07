@@ -190,6 +190,8 @@ class SQLiteStorage():
         lookup an address from the given match in database
         """
         with self.connect() as c:
+            # so we can access results via dictionary
+            c.row_factory = sqlite3.Row
             cur = c.cursor()
             for res in cur.execute(
                 """SELECT * FROM AddressBook WHERE AddressBook MATCH '"%s*"'"""
