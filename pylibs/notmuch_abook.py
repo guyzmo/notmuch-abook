@@ -21,15 +21,14 @@ Notmuch Addressbook utility
 Usage:
   notmuch_abook.py [-hv] [-c CONFIG] create
   notmuch_abook.py [-hv] [-c CONFIG] update
-  notmuch_abook.py [-hv] [-c CONFIG] lookup [--abook-output] <match>
+  notmuch_abook.py [-hv] [-c CONFIG] lookup [--output (abook | email)] <match>
   notmuch_abook.py [-hv] [-c CONFIG] changename <address> <name>
 
 Options:
-  -h --help            Show this help message and exit
-  -v --verbose         Show full stacktraces on error
-  -c CONFIG, --config CONFIG
-                       Path to notmuch configuration file
-  -a --abook-output    Give output in abook compatible format
+  -h --help                   Show this help message and exit
+  -v --verbose                Show full stacktraces on error
+  -c CONFIG, --config CONFIG  Path to notmuch configuration file
+  -o OUTPUT, --output OUTPUT  Format for address output [default: email]
 
 Commands:
 
@@ -39,6 +38,14 @@ Commands:
                       an email address or part of a name.
   changename <address> <name>
                       Change the name associated with an email address.
+
+Valid values for the OUTPUT are:
+
+* abook - Give output in abook compatible format so it can be easily parsed
+          by other programs.  The format is EMAIL<Tab>NAME
+* email - Give output in a format that can be used when composing an email.
+          So NAME <EMAIL>
+
 
 The database to use is set in the notmuch config file.
 """
@@ -201,6 +208,21 @@ class SQLiteStorage():
             return True
 
 
+def format_address(address, output_format):
+    if output_format == 'abook':
+        return "{address}\t{name}".format(address)
+    elif output_format == 'email':
+        if address['name']:
+            return "{name} <{address}>".format(address)
+        else:
+            return address['address']
+
+
+def print_address_list(address_list, output_format):
+    for address in address_list:
+        print format_address(address, output_format)
+
+
 def create_act(db, cf):
     db.create()
     nm_mailgetter = NotmuchAddressGetter(cf)
@@ -218,19 +240,8 @@ def update_act(db, verbose):
         print "added %d addresses" % n
 
 
-def lookup_act(match, abook_output, db):
-    for addr in db.lookup(match):
-        if abook_output:
-            print "%s\t%s" % (addr[1], addr[0])
-        else:
-            if addr[0] != "":
-                print "%s <%s>" % (addr[0], addr[1])
-            else:
-                print(addr[1])
-
-
-def changename_act(address, name, db):
-    db.change_name(address, name)
+def lookup_act(match, output_format, db):
+    print_address_list(db.lookup(match), output_format)
 
 
 def run():
@@ -249,7 +260,7 @@ def run():
         elif options['update']:
             update_act(db, options['--verbose'])
         elif options['lookup']:
-            lookup_act(options['<match>'], options['--abook-output'], db)
+            lookup_act(options['<match>'], options['--output'], db)
         elif options['changename']:
             db.change_name(options['<address>'], options['<name>'])
     except Exception as exc:
