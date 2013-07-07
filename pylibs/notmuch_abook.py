@@ -21,35 +21,34 @@ Notmuch Addressbook utility
 Usage:
   notmuch_abook.py [-hv] [-c CONFIG] create
   notmuch_abook.py [-hv] [-c CONFIG] update
-  notmuch_abook.py [-hv] [-c CONFIG] lookup [ -o FORMAT ] <match>
+  notmuch_abook.py [-hv] [-c CONFIG] lookup [ -f FORMAT ] <match>
   notmuch_abook.py [-hv] [-c CONFIG] changename <address> <name>
-  notmuch_abook.py [-hv] [-c CONFIG] export [ -o FORMAT ] [ -s SORT ] [-f FILE]
+  notmuch_abook.py [-hv] [-c CONFIG] export [ -f FORMAT ] [ -s SORT ] [<filename>]
 
 Options:
   -h --help                   Show this help message and exit
   -v --verbose                Show full stacktraces on error
   -c CONFIG, --config CONFIG  Path to notmuch configuration file
-  -o FORMAT, --output FORMAT  Format for address output [default: email]
+  -f FORMAT, --format FORMAT  Format for address output [default: email]
   -s SORT, --sort SORT        Whether to sort by name or address [default: name]
-  -f FILE, --file FILE        File to read/write from (for import/export)
 
 Commands:
 
-  create              Create a new database.
-  update              Update the database with a new email (on stdin).
-  lookup <match>      Lookup an address in the database.  The match can be
-                      an email address or part of a name.
+  create               Create a new database.
+  update               Update the database with a new email (on stdin).
+  lookup <match>       Lookup an address in the database.  The match can be
+                       an email address or part of a name.
   changename <address> <name>
-                      Change the name associated with an email address.
+                       Change the name associated with an email address.
+  export [<filename>]  Export database, to filename if given or to stdout if not.
 
-Valid values for the OUTPUT are:
+Valid values for the FORMAT are:
 
 * abook - Give output in abook compatible format so it can be easily parsed
           by other programs.  The format is EMAIL<Tab>NAME
 * csv   - Give output as CSV (comma separated values). NAME,EMAIL
 * email - Give output in a format that can be used when composing an email.
           So NAME <EMAIL>
-
 
 The database to use is set in the notmuch config file.
 """
@@ -68,7 +67,7 @@ try:
 except ImportError:
     import csv
 
-VALID_OUTPUT_FORMATS = ['abook', 'csv', 'email']
+VALID_FORMATS = ['abook', 'csv', 'email']
 
 
 class InvalidOptionError(Exception):
@@ -283,22 +282,22 @@ def lookup_act(match, output_format, db):
     print_address_list(db.lookup(match), output_format)
 
 
-def export_action(output_format, sort, db, outfile=None):
+def export_action(output_format, sort, db, filename=None):
     out = None
     try:
-        if outfile:
-            out = open(outfile, mode='w')
+        if filename:
+            out = open(filename, mode='w')
         print_address_list(db.fetchall(sort), output_format, out)
     finally:
-        if outfile:
+        if filename:
             out.close()
 
 
 def run():
     options = docopt.docopt(__doc__)
 
-    if options['--output'] not in VALID_OUTPUT_FORMATS:
-        print >> sys.stderr, '%s is not a valid output option.' % options['--output']
+    if options['--format'] not in VALID_FORMATS:
+        print >> sys.stderr, '%s is not a valid output option.' % options['--format']
         return 2
 
     try:
@@ -314,11 +313,11 @@ def run():
         elif options['update']:
             update_act(db, options['--verbose'])
         elif options['lookup']:
-            lookup_act(options['<match>'], options['--output'], db)
+            lookup_act(options['<match>'], options['--format'], db)
         elif options['changename']:
             db.change_name(options['<address>'], options['<name>'])
         elif options['export']:
-            export_action(options['--output'], options['--sort'], db, options['--file'])
+            export_action(options['--format'], options['--sort'], db, options['<filename>'])
     except Exception as exc:
         if options['--verbose']:
             import traceback
