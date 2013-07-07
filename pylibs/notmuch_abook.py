@@ -23,13 +23,14 @@ Usage:
   notmuch_abook.py [-hv] [-c CONFIG] update
   notmuch_abook.py [-hv] [-c CONFIG] lookup [ -o FORMAT ] <match>
   notmuch_abook.py [-hv] [-c CONFIG] changename <address> <name>
-  notmuch_abook.py [-hv] [-c CONFIG] export [ -o FORMAT ]
+  notmuch_abook.py [-hv] [-c CONFIG] export [ -o FORMAT ] [ -s SORT ]
 
 Options:
   -h --help                   Show this help message and exit
   -v --verbose                Show full stacktraces on error
   -c CONFIG, --config CONFIG  Path to notmuch configuration file
   -o FORMAT, --output FORMAT  Format for address output [default: email]
+  -s SORT, --sort SORT        Whether to sort by name or address [default: name]
 
 Commands:
 
@@ -205,14 +206,14 @@ class SQLiteStorage():
                     % match).fetchall():
                 yield res
 
-    def fetchall(self):
+    def fetchall(self, order_by):
         """
         Fetch all entries from the database.
         """
         with self.connect() as c:
             c.row_factory = sqlite3.Row
             cur = c.cursor()
-            for res in cur.execute("SELECT * FROM AddressBook").fetchall():
+            for res in cur.execute("SELECT * FROM AddressBook ORDER BY %s" % order_by).fetchall():
                 yield res
 
     def change_name(self, address, name):
@@ -263,8 +264,8 @@ def lookup_act(match, output_format, db):
     print_address_list(db.lookup(match), output_format)
 
 
-def export_act(output_format, db):
-    print_address_list(db.fetchall(), output_format)
+def export_act(output_format, sort, db):
+    print_address_list(db.fetchall(sort), output_format)
 
 
 def run():
@@ -291,7 +292,7 @@ def run():
         elif options['changename']:
             db.change_name(options['<address>'], options['<name>'])
         elif options['export']:
-            export_act(options['--output'], db)
+            export_act(options['--output'], options['--sort'], db)
     except Exception as exc:
         if options['--verbose']:
             import traceback
