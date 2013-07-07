@@ -23,6 +23,7 @@ Usage:
   notmuch_abook.py [-hv] [-c CONFIG] update
   notmuch_abook.py [-hv] [-c CONFIG] lookup [ -o FORMAT ] <match>
   notmuch_abook.py [-hv] [-c CONFIG] changename <address> <name>
+  notmuch_abook.py [-hv] [-c CONFIG] export [ -o FORMAT ]
 
 Options:
   -h --help                   Show this help message and exit
@@ -204,6 +205,15 @@ class SQLiteStorage():
                     % match).fetchall():
                 yield res
 
+    def fetchall(self):
+        """
+        Fetch all entries from the database.
+        """
+        with self.connect() as c:
+            cur = c.cursor()
+            for res in cur.execute("SELECT * FROM AddressBook").fetchall():
+                yield res
+
     def change_name(self, address, name):
         """
         Change the name associated with an email address
@@ -252,6 +262,10 @@ def lookup_act(match, output_format, db):
     print_address_list(db.lookup(match), output_format)
 
 
+def export_act(output_format, db):
+    print_address_list(db.fetchall(), output_format)
+
+
 def run():
     options = docopt.docopt(__doc__)
 
@@ -275,6 +289,8 @@ def run():
             lookup_act(options['<match>'], options['--output'], db)
         elif options['changename']:
             db.change_name(options['<address>'], options['<name>'])
+        elif options['export']:
+            export_act(options['--output'], db)
     except Exception as exc:
         if options['--verbose']:
             import traceback
