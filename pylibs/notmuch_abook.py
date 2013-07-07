@@ -256,7 +256,8 @@ def run():
     options = docopt.docopt(__doc__)
 
     if options['--output'] not in VALID_OUTPUT_FORMATS:
-        raise InvalidOptionError('%s is not a valid output option.' % options['--output'])
+        print >> sys.stderr, '%s is not a valid output option.' % options['--output']
+        return 2
 
     try:
         cf = NotMuchConfig(options['--config'])
@@ -280,6 +281,8 @@ def run():
             traceback.print_exc()
         else:
             print exc
+        return 1
+    return 0
 
 if __name__ == '__main__':
-    run()
+    sys.exit(run())
