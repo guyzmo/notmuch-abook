@@ -252,14 +252,12 @@ class SQLiteStorage():
                 (name, address))
             return True
 
-    def delete_all(self):
+    def delete_db(self):
         """
-        Delete all entries in the database (for full re-import)
+        Delete the database
         """
-        with self.connect() as c:
-            c.row_factory = sqlite3.Row
-            cur = c.cursor()
-            cur.execute("DELETE FROM AddressBook")
+        if os.path.exists(self.__path):
+            os.remove(self.__path)
 
 
 def format_address(address, output_format):
@@ -305,7 +303,8 @@ def import_address_list(db, replace_all, input_format, infile=None):
     if infile is None:
         infile = sys.stdin
     if replace_all:
-        db.delete_all()
+        db.delete_db()
+        db.create()
     if input_format == 'csv':
         try:
             reader = csv.reader(infile)
