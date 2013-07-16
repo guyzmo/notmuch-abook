@@ -19,12 +19,13 @@
 Notmuch Addressbook utility
 
 Usage:
-  notmuch_abook.py [-hv] [-c CONFIG] create
-  notmuch_abook.py [-hv] [-c CONFIG] update
-  notmuch_abook.py [-hv] [-c CONFIG] lookup [ -f FORMAT ] <match>
-  notmuch_abook.py [-hv] [-c CONFIG] changename <address> <name>
-  notmuch_abook.py [-hv] [-c CONFIG] export [ -f FORMAT ] [ -s SORT ] [<filename>]
-  notmuch_abook.py [-hv] [-c CONFIG] import [ -f FORMAT ] [ -r ] [<filename>]
+  notmuch_abook.py -h
+  notmuch_abook.py [-v] [-c CONFIG] create
+  notmuch_abook.py [-v] [-c CONFIG] update
+  notmuch_abook.py [-v] [-c CONFIG] lookup [ -f FORMAT ] <match>
+  notmuch_abook.py [-v] [-c CONFIG] changename <address> <name>
+  notmuch_abook.py [-v] [-c CONFIG] export [ -f FORMAT ] [ -s SORT ] [<filename>]
+  notmuch_abook.py [-v] [-c CONFIG] import [ -f FORMAT ] [ -r ] [<filename>]
 
 Options:
   -h --help                   Show this help message and exit
