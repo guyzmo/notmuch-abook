@@ -64,6 +64,7 @@ The database to use is set in the notmuch config file.
 import os.path
 import sys
 import docopt
+from io import open
 import notmuch
 import sqlite3
 import ConfigParser
@@ -345,10 +346,10 @@ def export_action(output_format, sort, db, filename=None):
     out = None
     try:
         if filename:
-            out = open(filename, mode='w')
+            out = open(filename, mode='w', encoding='utf-8')
         print_address_list(db.fetchall(sort), output_format, out)
     finally:
-        if filename:
+        if filename and out:
             out.close()
 
 
@@ -356,10 +357,10 @@ def import_action(input_format, replace, db, filename=None):
     infile = None
     try:
         if filename:
-            infile = open(filename, mode='r')
+            infile = open(filename, mode='r', encoding='utf-8')
         import_address_list(db, replace, input_format, infile)
     finally:
-        if filename:
+        if filename and infile:
             infile.close()
 
 
