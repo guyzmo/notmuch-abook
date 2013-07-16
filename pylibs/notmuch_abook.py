@@ -272,7 +272,10 @@ def format_address(address, output_format):
 
 def decode_line(line, input_format):
     if input_format == 'abook':
-        address, name = line.split('\t')
+        if '\t' in line:
+            address, name = line.split('\t')
+        else:
+            address, name = line, ''
     elif input_format == 'email':
         name, address = email.utils.parseaddr(line)
     else:
