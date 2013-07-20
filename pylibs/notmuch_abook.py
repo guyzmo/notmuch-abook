@@ -101,13 +101,19 @@ class Ignorer(object):
     def __init__(self, config):
         self.ignorefile = config.get('addressbook', 'ignorefile')
         self.ignore_regexes = None
+        self.ignore_substrings = None
 
     def create_regexes(self):
         if self.ignorefile is None:
             return
         self.ignore_regexes = []
+        self.ignore_substrings = []
         for line in open(self.ignorefile):
-            self.ignore_regexes.append(re.compile(line.strip(), re.IGNORECASE))
+            line = line.strip()
+            if line.startswith('/') and line.endswith('/'):
+                self.ignore_regexes.append(re.compile(line.strip('/'), re.IGNORECASE))
+            else:
+                self.ignore_substrings.append(line)
 
     def ignore_address(self, address):
         """Check if this email address should be ignored.
@@ -117,6 +123,9 @@ class Ignorer(object):
             return False
         if self.ignore_regexes is None:
             self.create_regexes()
+        substring_match = any(substr in address for substr in self.ignore_substrings)
+        if substring_match:
+            return True
         return any(regex.search(address) for regex in self.ignore_regexes)
 
 
