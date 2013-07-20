@@ -110,6 +110,8 @@ class Ignorer(object):
         self.ignore_substrings = []
         for line in open(self.ignorefile):
             line = line.strip()
+            if not line or line.startswith('#'):
+                continue  # skip blank lines and comments
             if line.startswith('/') and line.endswith('/'):
                 self.ignore_regexes.append(re.compile(line.strip('/'), re.IGNORECASE))
             else:
