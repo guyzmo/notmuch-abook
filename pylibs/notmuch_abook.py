@@ -263,7 +263,7 @@ class SQLiteStorage():
             return False
 
     def create_query(self, query_start, pattern):
-        return query_start + """ FROM AddressBook WHERE "AddressBook MATCH '"%s*"'""" % pattern
+        return query_start + """ FROM AddressBook WHERE AddressBook MATCH '"%s*"'""" % pattern
 
     def lookup(self, pattern):
         """
