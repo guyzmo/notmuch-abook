@@ -190,6 +190,7 @@ class SQLiteStorage():
     """SQL Storage backend"""
     def __init__(self, config):
         self.__path = config.get("addressbook", "path")
+        self.ignorer = Ignorer(config)
 
     def connect(self):
         """
@@ -238,13 +239,13 @@ class SQLiteStorage():
             cur.commit()
         return n
 
-    def update(self, addr, ignorer, replace=False):
+    def update(self, addr, replace=False):
         """
         updates the database with a new mail address tuple
 
         replace: if the email address already exists then replace the name with the new name
         """
-        if ignorer.ignore_address(addr[1]):
+        if self.ignorer.ignore_address(addr[1]):
             return False
         try:
             with self.connect() as c:
@@ -352,39 +353,43 @@ def print_address_list(address_list, output_format, out=None):
             out.write(format_address(address, output_format) + '\n')
 
 
-def import_address_list(db, ignorer, replace_all, input_format, infile=None):
+def import_address_list_from_csv(db, replace_all, infile):
+    try:
+        reader = csv.reader(infile)
+        for row in reader:
+            db.update(row, replace=(not replace_all))
+    except UnicodeEncodeError as e:
+        print >> sys.stderr, "Caught UnicodeEncodeError: %s" % e
+        print >> sys.stderr, "Installing unicodecsv will probably fix this"
+        return
+
+
+def import_address_list(db, replace_all, input_format, infile=None):
     if infile is None:
         infile = sys.stdin
     if replace_all:
         db.delete_db()
         db.create()
     if input_format == 'csv':
-        try:
-            reader = csv.reader(infile)
-            for row in reader:
-                db.update(row, ignorer, replace=(not replace_all))
-        except UnicodeEncodeError as e:
-            print >> sys.stderr, "Caught UnicodeEncodeError: %s" % e
-            print >> sys.stderr, "Installing unicodecsv will probably fix this"
-            return
+        import_address_list_from_csv(db, replace_all, infile)
     else:
         for line in infile:
             name_addr = decode_line(line.strip(), input_format)
-            db.update(name_addr, ignorer, replace=(not replace_all))
+            db.update(name_addr, replace=(not replace_all))
 
 
-def create_act(db, cf):
+def create_act(db, nm_config):
     db.create()
-    nm_mailgetter = NotmuchAddressGetter(cf)
+    nm_mailgetter = NotmuchAddressGetter(nm_config)
     n = db.init(nm_mailgetter.generate)
     print "added %d addresses" % n
 
 
-def update_act(db, ignorer, verbose):
+def update_act(db, verbose):
     n = 0
     m = email.message_from_file(sys.stdin)
     for addr in MailParser().parse_mail(m):
-        if db.update(addr, ignorer):
+        if db.update(addr):
             n += 1
     if verbose:
         print "added %d addresses" % n
@@ -423,12 +428,12 @@ def export_action(output_format, sort, db, filename=None):
             out.close()
 
 
-def import_action(input_format, replace, db, ignorer, filename=None):
+def import_action(input_format, replace, db, filename=None):
     infile = None
     try:
         if filename:
             infile = open(filename, mode='r', encoding='utf-8')
-        import_address_list(db, ignorer, replace, input_format, infile)
+        import_address_list(db, replace, input_format, infile)
     finally:
         if filename and infile:
             infile.close()
@@ -442,18 +447,17 @@ def run():
         return 2
 
     try:
-        cf = NotMuchConfig(options['--config'])
-        if cf.get("addressbook", "backend") == "sqlite3":
-            db = SQLiteStorage(cf)
+        nm_config = NotMuchConfig(options['--config'])
+        if nm_config.get("addressbook", "backend") == "sqlite3":
+            db = SQLiteStorage(nm_config)
         else:
             print "Database backend '%s' is not implemented." % \
-                cf.get("addressbook", "backend")
-        ignorer = Ignorer(cf)
+                nm_config.get("addressbook", "backend")
 
         if options['create']:
-            create_act(db, cf)
+            create_act(db, nm_config)
         elif options['update']:
-            update_act(db, ignorer, options['--verbose'])
+            update_act(db, options['--verbose'])
         elif options['lookup']:
             lookup_act(options['<match>'], options['--format'], db)
         elif options['changename']:
@@ -463,7 +467,7 @@ def run():
         elif options['export']:
             export_action(options['--format'], options['--sort'], db, options['<filename>'])
         elif options['import']:
-            import_action(options['--format'], options['--replace'], db, ignorer, options['<filename>'])
+            import_action(options['--format'], options['--replace'], db, options['<filename>'])
     except Exception as exc:
         if options['--verbose']:
             import traceback
