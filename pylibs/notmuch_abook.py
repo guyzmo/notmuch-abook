@@ -24,6 +24,7 @@ Usage:
   notmuch_abook.py [-v] [-c CONFIG] update
   notmuch_abook.py [-v] [-c CONFIG] lookup [ -f FORMAT ] <match>
   notmuch_abook.py [-v] [-c CONFIG] changename <address> <name>
+  notmuch_abook.py [-v] [-c CONFIG] delete [-n] <pattern>
   notmuch_abook.py [-v] [-c CONFIG] export [ -f FORMAT ] [ -s SORT ] [<filename>]
   notmuch_abook.py [-v] [-c CONFIG] import [ -f FORMAT ] [ -r ] [<filename>]
 
@@ -32,6 +33,7 @@ Options:
   -v --verbose                Show full stacktraces on error
   -c CONFIG, --config CONFIG  Path to notmuch configuration file
   -f FORMAT, --format FORMAT  Format for name/address (see below) [default: email]
+  -n, --noinput               Don't ask for confirmation
   -s SORT, --sort SORT        Whether to sort by name or address [default: name]
   -r, --replace               If present, then replace the current contents with
                               the imported contents.  If not then merge - add new
@@ -46,6 +48,10 @@ Commands:
                        an email address or part of a name.
   changename <address> <name>
                        Change the name associated with an email address.
+  delete <pattern>     Delete all entries that match the given pattern - matched
+                       against both name and email address.  The matches will be
+                       displayed and confirmation will be asked for, unless the
+                       --noinput flag is used.
   export [<filename>]  Export database, to filename if given or to stdout if not.
   import [<filename>]  Import into database, from filename if given or from stdin
                        if not.
@@ -256,7 +262,10 @@ class SQLiteStorage():
         except sqlite3.IntegrityError:
             return False
 
-    def lookup(self, match):
+    def create_query(self, query_start, pattern):
+        return query_start + """ FROM AddressBook WHERE "AddressBook MATCH '"%s*"'""" % pattern
+
+    def lookup(self, pattern):
         """
         lookup an address from the given match in database
         """
@@ -264,10 +273,16 @@ class SQLiteStorage():
             # so we can access results via dictionary
             c.row_factory = sqlite3.Row
             cur = c.cursor()
-            for res in cur.execute(
-                """SELECT * FROM AddressBook WHERE AddressBook MATCH '"%s*"'"""
-                    % match).fetchall():
+            for res in cur.execute(self.create_query("SELECT *", pattern)).fetchall():
                 yield res
+
+    def delete_matches(self, pattern):
+        """
+        Delete all entries that match the pattern
+        """
+        with self.connect() as c:
+            cur = c.cursor()
+            cur.execute(self.create_query("DELETE", pattern))
 
     def fetchall(self, order_by):
         """
@@ -379,6 +394,24 @@ def lookup_act(match, output_format, db):
     print_address_list(db.lookup(match), output_format)
 
 
+def delete_action(db, pattern, noinput):
+    matches = list(db.lookup(pattern))
+    if len(matches) == 0:
+        print "Nothing to delete"
+        return
+    print "The following entries match:"
+    print
+    print_address_list(matches, 'email')
+    if not noinput:
+        print
+        response = raw_input('Are you sure you want to delete all these entries? (y/n) ')
+        if response.lower() != 'y':
+            return
+    db.delete_matches(pattern)
+    print
+    print "%d entries deleted" % len(matches)
+
+
 def export_action(output_format, sort, db, filename=None):
     out = None
     try:
@@ -425,6 +458,8 @@ def run():
             lookup_act(options['<match>'], options['--format'], db)
         elif options['changename']:
             db.change_name(options['<address>'], options['<name>'])
+        elif options['delete']:
+            delete_action(db, options['<pattern>'], options['--noinput'])
         elif options['export']:
             export_action(options['--format'], options['--sort'], db, options['<filename>'])
         elif options['import']:
