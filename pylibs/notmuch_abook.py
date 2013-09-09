@@ -378,14 +378,14 @@ def import_address_list(db, replace_all, input_format, infile=None):
             db.update(name_addr, replace=(not replace_all))
 
 
-def create_act(db, nm_config):
+def create_action(db, nm_config):
     db.create()
     nm_mailgetter = NotmuchAddressGetter(nm_config)
     n = db.init(nm_mailgetter.generate)
     print "added %d addresses" % n
 
 
-def update_act(db, verbose):
+def update_action(db, verbose):
     n = 0
     m = email.message_from_file(sys.stdin)
     for addr in MailParser().parse_mail(m):
@@ -395,7 +395,7 @@ def update_act(db, verbose):
         print "added %d addresses" % n
 
 
-def lookup_act(match, output_format, db):
+def lookup_action(db, match, output_format):
     print_address_list(db.lookup(match), output_format)
 
 
@@ -417,7 +417,7 @@ def delete_action(db, pattern, noinput):
     print "%d entries deleted" % len(matches)
 
 
-def export_action(output_format, sort, db, filename=None):
+def export_action(db, output_format, sort, filename=None):
     out = None
     try:
         if filename:
@@ -428,7 +428,7 @@ def export_action(output_format, sort, db, filename=None):
             out.close()
 
 
-def import_action(input_format, replace, db, filename=None):
+def import_action(db, input_format, replace, filename=None):
     infile = None
     try:
         if filename:
@@ -455,19 +455,19 @@ def run():
                 nm_config.get("addressbook", "backend")
 
         if options['create']:
-            create_act(db, nm_config)
+            create_action(db, nm_config)
         elif options['update']:
-            update_act(db, options['--verbose'])
+            update_action(db, options['--verbose'])
         elif options['lookup']:
-            lookup_act(options['<match>'], options['--format'], db)
+            lookup_action(db, options['<match>'], options['--format'])
         elif options['changename']:
             db.change_name(options['<address>'], options['<name>'])
         elif options['delete']:
             delete_action(db, options['<pattern>'], options['--noinput'])
         elif options['export']:
-            export_action(options['--format'], options['--sort'], db, options['<filename>'])
+            export_action(db, options['--format'], options['--sort'], options['<filename>'])
         elif options['import']:
-            import_action(options['--format'], options['--replace'], db, options['<filename>'])
+            import_action(db, options['--format'], options['--replace'], options['<filename>'])
     except Exception as exc:
         if options['--verbose']:
             import traceback
