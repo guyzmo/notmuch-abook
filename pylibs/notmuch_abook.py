@@ -253,8 +253,7 @@ class SQLiteStorage():
                 if replace:
                     present = cur.execute("SELECT 1 FROM AddressBook WHERE address = ?", [addr[1]])
                     if present:
-                        cur.execute(
-                            "UPDATE AddressBook SET name = ? WHERE address = ?", addr)
+                        cur.execute("UPDATE AddressBook SET name = ? WHERE address = ?", addr)
                     else:
                         cur.execute("INSERT INTO AddressBookView VALUES(?,?)", addr)
                 else:
@@ -301,9 +300,7 @@ class SQLiteStorage():
         """
         with self.connect() as c:
             cur = c.cursor()
-            cur.execute(
-                "UPDATE AddressBook SET name = '%s' WHERE address = '%s'" %
-                (name, address))
+            cur.execute("UPDATE AddressBook SET name = '%s' WHERE address = '%s'" % (name, address))
             return True
 
     def delete_db(self):
