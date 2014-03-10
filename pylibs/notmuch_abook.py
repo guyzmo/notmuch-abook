@@ -93,7 +93,7 @@ class InvalidOptionError(Exception):
 class NotMuchConfig(object):
     def __init__(self, config_file):
         if config_file is None:
-            config_file = os.environ.get('NOTMUCH_CONFIG', '~/.notmuch_config')
+            config_file = os.environ.get('NOTMUCH_CONFIG', '~/.notmuch-config')
 
         # set a default for ignorefile
         self.config = ConfigParser.ConfigParser({'ignorefile': None})
