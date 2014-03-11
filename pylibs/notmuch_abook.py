@@ -24,6 +24,7 @@ Usage:
   notmuch_abook.py [-v] [-c CONFIG] update
   notmuch_abook.py [-v] [-c CONFIG] lookup [ -f FORMAT ] <match>
   notmuch_abook.py [-v] [-c CONFIG] changename <address> <name>
+  notmuch_abook.py [-v] [-c CONFIG] delete [-n] <pattern>
   notmuch_abook.py [-v] [-c CONFIG] export [ -f FORMAT ] [ -s SORT ] [<filename>]
   notmuch_abook.py [-v] [-c CONFIG] import [ -f FORMAT ] [ -r ] [<filename>]
 
@@ -32,6 +33,7 @@ Options:
   -v --verbose                Show full stacktraces on error
   -c CONFIG, --config CONFIG  Path to notmuch configuration file
   -f FORMAT, --format FORMAT  Format for name/address (see below) [default: email]
+  -n, --noinput               Don't ask for confirmation
   -s SORT, --sort SORT        Whether to sort by name or address [default: name]
   -r, --replace               If present, then replace the current contents with
                               the imported contents.  If not then merge - add new
@@ -46,6 +48,10 @@ Commands:
                        an email address or part of a name.
   changename <address> <name>
                        Change the name associated with an email address.
+  delete <pattern>     Delete all entries that match the given pattern - matched
+                       against both name and email address.  The matches will be
+                       displayed and confirmation will be asked for, unless the
+                       --noinput flag is used.
   export [<filename>]  Export database, to filename if given or to stdout if not.
   import [<filename>]  Import into database, from filename if given or from stdin
                        if not.
@@ -66,6 +72,7 @@ import sys
 import docopt
 from io import open
 import notmuch
+import re
 import sqlite3
 import ConfigParser
 import email.parser
@@ -88,11 +95,46 @@ class NotMuchConfig(object):
         if config_file is None:
             config_file = os.environ.get('NOTMUCH_CONFIG', '~/.notmuch-config')
 
-        self.config = ConfigParser.ConfigParser()
+        # set a default for ignorefile
+        self.config = ConfigParser.ConfigParser({'ignorefile': None})
         self.config.read(os.path.expanduser(config_file))
 
     def get(self, section, key):
         return self.config.get(section, key)
+
+
+class Ignorer(object):
+    def __init__(self, config):
+        self.ignorefile = config.get('addressbook', 'ignorefile')
+        self.ignore_regexes = None
+        self.ignore_substrings = None
+
+    def create_regexes(self):
+        if self.ignorefile is None:
+            return
+        self.ignore_regexes = []
+        self.ignore_substrings = []
+        for line in open(self.ignorefile):
+            line = line.strip()
+            if not line or line.startswith('#'):
+                continue  # skip blank lines and comments
+            if line.startswith('/') and line.endswith('/'):
+                self.ignore_regexes.append(re.compile(line.strip('/'), re.IGNORECASE))
+            else:
+                self.ignore_substrings.append(line)
+
+    def ignore_address(self, address):
+        """Check if this email address should be ignored.
+
+        Return True if it should be ignored, or False otherwise."""
+        if self.ignorefile is None:
+            return False
+        if self.ignore_regexes is None:
+            self.create_regexes()
+        substring_match = any(substr in address for substr in self.ignore_substrings)
+        if substring_match:
+            return True
+        return any(regex.search(address) for regex in self.ignore_regexes)
 
 
 class MailParser(object):
@@ -148,6 +190,7 @@ class SQLiteStorage():
     """SQL Storage backend"""
     def __init__(self, config):
         self.__path = config.get("addressbook", "path")
+        self.ignorer = Ignorer(config)
 
     def connect(self):
         """
@@ -202,14 +245,15 @@ class SQLiteStorage():
 
         replace: if the email address already exists then replace the name with the new name
         """
+        if self.ignorer.ignore_address(addr[1]):
+            return False
         try:
             with self.connect() as c:
                 cur = c.cursor()
                 if replace:
                     present = cur.execute("SELECT 1 FROM AddressBook WHERE address = ?", [addr[1]])
                     if present:
-                        cur.execute(
-                            "UPDATE AddressBook SET name = ? WHERE address = ?", addr)
+                        cur.execute("UPDATE AddressBook SET name = ? WHERE address = ?", addr)
                     else:
                         cur.execute("INSERT INTO AddressBookView VALUES(?,?)", addr)
                 else:
@@ -218,7 +262,10 @@ class SQLiteStorage():
         except sqlite3.IntegrityError:
             return False
 
-    def lookup(self, match):
+    def create_query(self, query_start, pattern):
+        return query_start + """ FROM AddressBook WHERE AddressBook MATCH '"%s*"'""" % pattern
+
+    def lookup(self, pattern):
         """
         lookup an address from the given match in database
         """
@@ -226,10 +273,16 @@ class SQLiteStorage():
             # so we can access results via dictionary
             c.row_factory = sqlite3.Row
             cur = c.cursor()
-            for res in cur.execute(
-                """SELECT * FROM AddressBook WHERE AddressBook MATCH '"%s*"'"""
-                    % match).fetchall():
+            for res in cur.execute(self.create_query("SELECT *", pattern)).fetchall():
                 yield res
+
+    def delete_matches(self, pattern):
+        """
+        Delete all entries that match the pattern
+        """
+        with self.connect() as c:
+            cur = c.cursor()
+            cur.execute(self.create_query("DELETE", pattern))
 
     def fetchall(self, order_by):
         """
@@ -247,9 +300,7 @@ class SQLiteStorage():
         """
         with self.connect() as c:
             cur = c.cursor()
-            cur.execute(
-                "UPDATE AddressBook SET name = '%s' WHERE address = '%s'" %
-                (name, address))
+            cur.execute("UPDATE AddressBook SET name = '%s' WHERE address = '%s'" % (name, address))
             return True
 
     def delete_db(self):
@@ -299,6 +350,17 @@ def print_address_list(address_list, output_format, out=None):
             out.write(format_address(address, output_format) + '\n')
 
 
+def import_address_list_from_csv(db, replace_all, infile):
+    try:
+        reader = csv.reader(infile)
+        for row in reader:
+            db.update(row, replace=(not replace_all))
+    except UnicodeEncodeError as e:
+        print >> sys.stderr, "Caught UnicodeEncodeError: %s" % e
+        print >> sys.stderr, "Installing unicodecsv will probably fix this"
+        return
+
+
 def import_address_list(db, replace_all, input_format, infile=None):
     if infile is None:
         infile = sys.stdin
@@ -306,28 +368,21 @@ def import_address_list(db, replace_all, input_format, infile=None):
         db.delete_db()
         db.create()
     if input_format == 'csv':
-        try:
-            reader = csv.reader(infile)
-            for row in reader:
-                db.update(row, replace=(not replace_all))
-        except UnicodeEncodeError as e:
-            print >> sys.stderr, "Caught UnicodeEncodeError: %s" % e
-            print >> sys.stderr, "Installing unicodecsv will probably fix this"
-            return
+        import_address_list_from_csv(db, replace_all, infile)
     else:
         for line in infile:
             name_addr = decode_line(line.strip(), input_format)
             db.update(name_addr, replace=(not replace_all))
 
 
-def create_act(db, cf):
+def create_action(db, nm_config):
     db.create()
-    nm_mailgetter = NotmuchAddressGetter(cf)
+    nm_mailgetter = NotmuchAddressGetter(nm_config)
     n = db.init(nm_mailgetter.generate)
     print "added %d addresses" % n
 
 
-def update_act(db, verbose):
+def update_action(db, verbose):
     n = 0
     m = email.message_from_file(sys.stdin)
     for addr in MailParser().parse_mail(m):
@@ -337,11 +392,29 @@ def update_act(db, verbose):
         print "added %d addresses" % n
 
 
-def lookup_act(match, output_format, db):
+def lookup_action(db, match, output_format):
     print_address_list(db.lookup(match), output_format)
 
 
-def export_action(output_format, sort, db, filename=None):
+def delete_action(db, pattern, noinput):
+    matches = list(db.lookup(pattern))
+    if len(matches) == 0:
+        print "Nothing to delete"
+        return
+    print "The following entries match:"
+    print
+    print_address_list(matches, 'email')
+    if not noinput:
+        print
+        response = raw_input('Are you sure you want to delete all these entries? (y/n) ')
+        if response.lower() != 'y':
+            return
+    db.delete_matches(pattern)
+    print
+    print "%d entries deleted" % len(matches)
+
+
+def export_action(db, output_format, sort, filename=None):
     out = None
     try:
         if filename:
@@ -352,7 +425,7 @@ def export_action(output_format, sort, db, filename=None):
             out.close()
 
 
-def import_action(input_format, replace, db, filename=None):
+def import_action(db, input_format, replace, filename=None):
     infile = None
     try:
         if filename:
@@ -371,25 +444,27 @@ def run():
         return 2
 
     try:
-        cf = NotMuchConfig(options['--config'])
-        if cf.get("addressbook", "backend") == "sqlite3":
-            db = SQLiteStorage(cf)
+        nm_config = NotMuchConfig(options['--config'])
+        if nm_config.get("addressbook", "backend") == "sqlite3":
+            db = SQLiteStorage(nm_config)
         else:
             print "Database backend '%s' is not implemented." % \
-                cf.get("addressbook", "backend")
+                nm_config.get("addressbook", "backend")
 
         if options['create']:
-            create_act(db, cf)
+            create_action(db, nm_config)
         elif options['update']:
-            update_act(db, options['--verbose'])
+            update_action(db, options['--verbose'])
         elif options['lookup']:
-            lookup_act(options['<match>'], options['--format'], db)
+            lookup_action(db, options['<match>'], options['--format'])
         elif options['changename']:
             db.change_name(options['<address>'], options['<name>'])
+        elif options['delete']:
+            delete_action(db, options['<pattern>'], options['--noinput'])
         elif options['export']:
-            export_action(options['--format'], options['--sort'], db, options['<filename>'])
+            export_action(db, options['--format'], options['--sort'], options['<filename>'])
         elif options['import']:
-            import_action(options['--format'], options['--replace'], db, options['<filename>'])
+            import_action(db, options['--format'], options['--replace'], options['<filename>'])
     except Exception as exc:
         if options['--verbose']:
             import traceback
