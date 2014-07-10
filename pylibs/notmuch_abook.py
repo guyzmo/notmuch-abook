@@ -347,7 +347,8 @@ def print_address_list(address_list, output_format, out=None):
             return
     else:
         for address in address_list:
-            out.write(format_address(address, output_format) + '\n')
+            output = format_address(address, output_format).encode('utf-8')
+            out.write(output + '\n')
 
 
 def import_address_list_from_csv(db, replace_all, infile):
