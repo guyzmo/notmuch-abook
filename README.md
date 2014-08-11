@@ -49,6 +49,21 @@ backend=sqlite3
 
 where USER is your username (or at any other place)
 
+Default notmuch query string is
+
+```
+NOT tag:junk AND NOT folder:drafts AND NOT tag:deleted
+```
+
+If you prefer something else, you can specify it in notmuch configuration file:
+
+```
+[addressbook]
+path=/home/USER/.notmuch-abook.db
+backend=sqlite3
+query=folder:Inbox OR folder:Sent
+```
+
 If you use a non-default notmuch configuration file, you can set it in your vimrc with:
 
 ```

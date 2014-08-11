@@ -172,11 +172,15 @@ class NotmuchAddressGetter(object):
         """
         """
         self.db_path = config.get("database", "path")
+        try:
+            self.query = config.get("addressbook", "query")
+        except ConfigParser.NoOptionError:
+            self.query = "NOT tag:junk AND NOT folder:drafts AND NOT tag:deleted"
         self._mp = MailParser()
 
     def _get_all_messages(self):
         notmuch_db = notmuch.Database(self.db_path)
-        query = notmuch.Query(notmuch_db, "NOT tag:junk AND NOT folder:drafts AND NOT tag:deleted")
+        query = notmuch.Query(notmuch_db, self.query)
         return query.search_messages()
 
     def generate(self):
