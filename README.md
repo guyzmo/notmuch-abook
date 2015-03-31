@@ -33,7 +33,7 @@ Bundle "guyzmo/notmuch-abook"
 
 for convenience, you can create a symlink to your bin directory:
 ```
-ln -s $HOME/.vim/bundle/notmuch-abook/pylibs/notmuch_addresses.py ~/bin/notmuch-abook
+ln -s $HOME/.vim/bundle/notmuch-abook/python/notmuch_addresses.py ~/bin/notmuch-abook
 ```
 
 CONFIGURATION
@@ -74,7 +74,7 @@ In your favorite mail filter program, add a rule such as (for procmail), so all 
 
 ```
 :0 Wh
-| python $HOME/.vim/bundle/notmuch-abook/pylibs/notmuch_addresses.py update
+| python $HOME/.vim/bundle/notmuch-abook/python/notmuch_addresses.py update
 ```
 
 If you can't use procmail (eg if you are using offlineimap) then you could put the following few lines at the start of the [post-new hook](http://notmuchmail.org/manpages/notmuch-hooks-5/) (**before** you remove the new tag).  Also note this is shell syntax, so you'll have to adapt if your hook is in another language.
@@ -92,14 +92,14 @@ USAGE
 For the first time, you shall launch the script as follows to create the addresses database (it takes ~20 seconds for 10000 mails):
 
 ```
-python $HOME/.vim/bundle/notmuch-abook/pylibs/notmuch_addresses.py create
+python $HOME/.vim/bundle/notmuch-abook/python/notmuch_addresses.py create
 ```
 
 and then, to lookup an address, either you use the vimscript to complete (<c-x><c-u>) the name in a header field,
 or you can call it from commandline:
 
 ```
-python $HOME/.vim/bundle/notmuch-abook/pylibs/notmuch_addresses.py lookup Guyz
+python $HOME/.vim/bundle/notmuch-abook/python/notmuch_addresses.py lookup Guyz
 ```
 
 the script will match any word beginning with the pattern in the name and address parts of the entry.
