@@ -16,11 +16,18 @@ if !exists("g:notmuchconfig")
     let g:notmuchconfig = "~/.notmuch-config"
 endif
 
+let s:scriptpath = expand('<sfile>:p:h')
+
 " Init link to Addressbook database
 fun! InitAddressBook()
     py import vim
     py import sys
     py import os.path
+
+    py curpath = vim.eval("getcwd()")
+    py libpath = os.path.join(os.path.abspath(os.path.join(vim.eval("s:scriptpath"), '..')), 'pylibs')
+    py sys.path = [os.path.dirname(libpath), libpath, curpath] + sys.path
+
     py import notmuch_abook
     py cfg = notmuch_abook.NotMuchConfig(os.path.expanduser(vim.eval("g:notmuchconfig")))
     py db = notmuch_abook.SQLiteStorage(cfg) if cfg.get("addressbook", "backend") == "sqlite3" else None
@@ -41,7 +48,7 @@ fun! CompleteAddressBook(findstart, base)
 python << EOP
 encoding = vim.eval("&encoding")
 if db:
-    for addr in db.lookup(vim.eval('a:base')):
+    for addr in db.lookup(vim.eval('a:base')): 
         if addr[0] == "":
             addr = addr[1]
         else:
