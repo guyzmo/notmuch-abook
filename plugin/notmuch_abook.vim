@@ -48,7 +48,7 @@ fun! CompleteAddressBook(findstart, base)
 python << EOP
 encoding = vim.eval("&encoding")
 if db:
-    for addr in db.lookup(vim.eval('a:base')): 
+    for addr in db.lookup(vim.eval('a:base')):
         if addr[0] == "":
             addr = addr[1]
         else:
