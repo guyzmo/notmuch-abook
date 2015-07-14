@@ -13,13 +13,13 @@ INSTALL
 
 if you do not want to use the vim script file, you can install the module as follows:
 
-```
+```sh
 python setup.py install
 ```
 
 or using:
 
-```
+```sh
 pip install notmuch_abook
 ```
 
@@ -27,12 +27,13 @@ pip install notmuch_abook
 
 Use vundle to install this script, add to your vimrc:
 
-```
+```vim
 Bundle "guyzmo/notmuch-abook"
 ```
 
 for convenience, you can create a symlink to your bin directory:
-```
+
+```sh
 ln -s $HOME/.vim/bundle/notmuch-abook/pylibs/notmuch_addresses.py ~/bin/notmuch-abook
 ```
 
@@ -41,7 +42,7 @@ CONFIGURATION
 
 Open notmuch configuration file (usually $HOME/.notmuch-config) and add:
 
-```
+```ini
 [addressbook]
 path=/home/USER/.notmuch-abook.db
 backend=sqlite3
@@ -57,7 +58,7 @@ NOT tag:junk AND NOT folder:drafts AND NOT tag:deleted
 
 If you prefer something else, you can specify it in notmuch configuration file:
 
-```
+```ini
 [addressbook]
 path=/home/USER/.notmuch-abook.db
 backend=sqlite3
@@ -66,7 +67,7 @@ query=folder:Inbox OR folder:Sent
 
 If you use a non-default notmuch configuration file, you can set it in your vimrc with:
 
-```
+```vim
 let g:notmuchconfig = "~/.notmuch-config-custom"
 ```
 
@@ -79,7 +80,7 @@ In your favorite mail filter program, add a rule such as (for procmail), so all 
 
 If you can't use procmail (eg if you are using offlineimap) then you could put the following few lines at the start of the [post-new hook](http://notmuchmail.org/manpages/notmuch-hooks-5/) (**before** you remove the new tag).  Also note this is shell syntax, so you'll have to adapt if your hook is in another language.
 
-```
+```sh
 # first update notmuch-abook
 for file in $(notmuch search --output=files tag:new) ; do
     cat "$file" | $HOME/bin/notmuch-abook update
@@ -91,14 +92,14 @@ USAGE
 
 For the first time, you shall launch the script as follows to create the addresses database (it takes ~20 seconds for 10000 mails):
 
-```
+```sh
 python $HOME/.vim/bundle/notmuch-abook/pylibs/notmuch_addresses.py create
 ```
 
-and then, to lookup an address, either you use the vimscript to complete (<c-x><c-u>) the name in a header field,
+and then, to lookup an address, either you use the vimscript to complete (`<c-x><c-u>`) the name in a header field,
 or you can call it from commandline:
 
-```
+```sh
 python $HOME/.vim/bundle/notmuch-abook/pylibs/notmuch_addresses.py lookup Guyz
 ```
 
