@@ -67,16 +67,24 @@ Valid values for the FORMAT are:
 The database to use is set in the notmuch config file.
 """
 
-import os.path
+from __future__ import print_function
+
+import os
+import re
 import sys
 import docopt
-from io import open
 import notmuch
-import re
 import sqlite3
-import ConfigParser
-import email.parser
 import email.utils
+import email.parser
+
+from io import open
+
+if sys.version_info.major == 3:
+    import configparser
+else:
+    input = raw_input
+    import ConfigParser as configparser
 # use unicode csv if available
 try:
     import unicodecsv as csv
@@ -96,7 +104,7 @@ class NotMuchConfig(object):
             config_file = os.environ.get('NOTMUCH_CONFIG', '~/.notmuch-config')
 
         # set a default for ignorefile
-        self.config = ConfigParser.ConfigParser({'ignorefile': None})
+        self.config = configparser.ConfigParser({'ignorefile': None})
         self.config.read(os.path.expanduser(config_file))
 
     def get(self, section, key):
@@ -174,7 +182,7 @@ class NotmuchAddressGetter(object):
         self.db_path = config.get("database", "path")
         try:
             self.query = config.get("addressbook", "query")
-        except ConfigParser.NoOptionError:
+        except configparser.NoOptionError:
             self.query = "NOT tag:junk AND NOT folder:drafts AND NOT tag:deleted"
         self._mp = MailParser()
 
@@ -202,7 +210,7 @@ class SQLiteStorage():
         throws an error if the database does not exists
         """
         if not os.path.exists(self.__path):
-            raise IOError("Database '%s' does not exists" % (self.__path,))
+            raise IOError("Database '{}' does not exists".format(self.__path))
         return sqlite3.connect(self.__path, isolation_level="DEFERRED")
 
     def create(self):
@@ -267,7 +275,7 @@ class SQLiteStorage():
             return False
 
     def create_query(self, query_start, pattern):
-        return query_start + """ FROM AddressBook WHERE AddressBook MATCH '"%s*"'""" % pattern
+        return query_start + """ FROM AddressBook WHERE AddressBook MATCH '"{}*"'""".format(pattern)
 
     def lookup(self, pattern):
         """
@@ -295,7 +303,7 @@ class SQLiteStorage():
         with self.connect() as c:
             c.row_factory = sqlite3.Row
             cur = c.cursor()
-            for res in cur.execute("SELECT * FROM AddressBook ORDER BY %s" % order_by).fetchall():
+            for res in cur.execute("SELECT * FROM AddressBook ORDER BY {}".format(order_by)).fetchall():
                 yield res
 
     def change_name(self, address, name):
@@ -304,7 +312,7 @@ class SQLiteStorage():
         """
         with self.connect() as c:
             cur = c.cursor()
-            cur.execute("UPDATE AddressBook SET name = '%s' WHERE address = '%s'" % (name, address))
+            cur.execute("UPDATE AddressBook SET name = '{}' WHERE address = '{}'".format(name, address))
             return True
 
     def delete_db(self):
@@ -317,11 +325,11 @@ class SQLiteStorage():
 
 def format_address(address, output_format):
     if output_format == 'abook':
-        return "%s\t%s" % (address['Address'], address['Name'])
+        return "{}\t{}".format(address['Address'], address['Name'])
     elif output_format == 'email':
         return email.utils.formataddr((address['Name'], address['Address']))
     else:
-        raise InvalidOptionError('Unknown format: %s' % output_format)
+        raise InvalidOptionError('Unknown format: {}'.format(output_format))
 
 
 def decode_line(line, input_format):
@@ -333,7 +341,7 @@ def decode_line(line, input_format):
     elif input_format == 'email':
         name, address = email.utils.parseaddr(line)
     else:
-        raise InvalidOptionError('Unknown format: %s' % input_format)
+        raise InvalidOptionError('Unknown format: {}'.format(input_format))
     return name, address
 
 
@@ -346,8 +354,8 @@ def print_address_list(address_list, output_format, out=None):
             for address in address_list:
                 writer.writerow((address['Name'], address['Address']))
         except UnicodeEncodeError as e:
-            print >> sys.stderr, "Caught UnicodeEncodeError: %s" % e
-            print >> sys.stderr, "Installing unicodecsv will probably fix this"
+            print("Caught UnicodeEncodeError: {}".format(e), file=sys.stderr)
+            print("Installing unicodecsv will probably fix this", file=sys.stderr)
             return
     else:
         for address in address_list:
@@ -361,8 +369,8 @@ def import_address_list_from_csv(db, replace_all, infile):
         for row in reader:
             db.update(row, replace=(not replace_all))
     except UnicodeEncodeError as e:
-        print >> sys.stderr, "Caught UnicodeEncodeError: %s" % e
-        print >> sys.stderr, "Installing unicodecsv will probably fix this"
+        print("Caught UnicodeEncodeError: {}".format(e), file=sys.stderr)
+        print("Installing unicodecsv will probably fix this", file=sys.stderr)
         return
 
 
@@ -384,7 +392,7 @@ def create_action(db, nm_config):
     db.create()
     nm_mailgetter = NotmuchAddressGetter(nm_config)
     n = db.init(nm_mailgetter.generate)
-    print "added %d addresses" % n
+    print("added {} addresses".format(n))
 
 
 def update_action(db, verbose):
@@ -394,7 +402,7 @@ def update_action(db, verbose):
         if db.update(addr):
             n += 1
     if verbose:
-        print "added %d addresses" % n
+        print("added {} addresses".format(n))
 
 
 def lookup_action(db, match, output_format):
@@ -404,19 +412,19 @@ def lookup_action(db, match, output_format):
 def delete_action(db, pattern, noinput):
     matches = list(db.lookup(pattern))
     if len(matches) == 0:
-        print "Nothing to delete"
+        print("Nothing to delete")
         return
-    print "The following entries match:"
-    print
+    print("The following entries match:")
+    print()
     print_address_list(matches, 'email')
     if not noinput:
-        print
-        response = raw_input('Are you sure you want to delete all these entries? (y/n) ')
+        print()
+        response = input('Are you sure you want to delete all these entries? (y/n) ')
         if response.lower() != 'y':
             return
     db.delete_matches(pattern)
-    print
-    print "%d entries deleted" % len(matches)
+    print()
+    print("{} entries deleted".format(len(matches)))
 
 
 def export_action(db, output_format, sort, filename=None):
@@ -445,7 +453,7 @@ def run():
     options = docopt.docopt(__doc__)
 
     if options['--format'] not in VALID_FORMATS:
-        print >> sys.stderr, '%s is not a valid output option.' % options['--format']
+        print('{} is not a valid output option.'.format(options['--format']), file=sys.stderr)
         return 2
 
     try:
@@ -453,8 +461,7 @@ def run():
         if nm_config.get("addressbook", "backend") == "sqlite3":
             db = SQLiteStorage(nm_config)
         else:
-            print "Database backend '%s' is not implemented." % \
-                nm_config.get("addressbook", "backend")
+            print("Database backend '{}' is not implemented.".format(nm_config.get("addressbook", "backend")))
 
         if options['create']:
             create_action(db, nm_config)
@@ -475,7 +482,7 @@ def run():
             import traceback
             traceback.print_exc()
         else:
-            print exc
+            print(exc)
         return 1
     return 0
 

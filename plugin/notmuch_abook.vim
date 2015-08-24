@@ -47,7 +47,7 @@ if db:
         else:
             addr = addr[0]+" <"+addr[1]+">"
         vim.command('call complete_check()')
-        vim.command(('call complete_add("%s")' % addr.replace('"', "")).encode( encoding ))
+        vim.command(('call complete_add("{}")'.format(addr.replace('"', ""))).encode( encoding ))
 else:
     vim.command('echoerr "No backend found."')
 EOP
