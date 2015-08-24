@@ -359,7 +359,7 @@ def print_address_list(address_list, output_format, out=None):
             return
     else:
         for address in address_list:
-            output = format_address(address, output_format).encode('utf-8')
+            output = format_address(address, output_format)
             out.write(output + '\n')
 
 
