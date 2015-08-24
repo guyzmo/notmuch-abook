@@ -58,7 +58,7 @@ endfun
 
 augroup notmuchabook
     au!
-    au FileType mail call InitAddressBook()
-    au FileType mail setlocal completefunc=CompleteAddressBook
+    au FileType mail,notmuch-compose call InitAddressBook()
+    au FileType mail,notmuch-compose setlocal completefunc=CompleteAddressBook
 augroup END
 
