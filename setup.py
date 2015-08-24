@@ -19,7 +19,7 @@ Notmuch Addressbook Utility
 """ % read('README')
 
 setup(name='notmuch_abook',
-      version="v1.6",
+      version="v1.7",
       description="Notmuch addressbook",
       long_description=long_description,
       classifiers=["Development Status :: 4 - Beta",
@@ -31,7 +31,7 @@ setup(name='notmuch_abook',
       author_email='guyzmo+notmuch@m0g.net',
       url='https://github.com/guyzmo/notmuch-abook/',
       license='WTFPL',
-      package_dir={'notmuch_abook': 'python'},
+      package_dir={'notmuch_abook': 'pythonx'},
       data_files=[('plugin', ['plugin/notmuch_abook.vim'])],
       packages=['notmuch_abook'], #find_packages(exclude=['plugin']),
       include_package_data=True,
