@@ -12,17 +12,11 @@ if !has('python')
     finish
 endif
 
-if !exists("g:notmuchconfig")
-    let g:notmuchconfig = "~/.notmuch-config"
-endif
-
 " Init link to Addressbook database
 fun! InitAddressBook()
     py import vim
-    py import sys
-    py import os.path
     py import notmuch_abook
-    py cfg = notmuch_abook.NotMuchConfig(os.path.expanduser(vim.eval("g:notmuchconfig")))
+    py cfg = notmuch_abook.NotMuchConfig(None)
     py db = notmuch_abook.SQLiteStorage(cfg) if cfg.get("addressbook", "backend") == "sqlite3" else None
 endfun
 

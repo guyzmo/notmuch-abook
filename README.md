@@ -66,11 +66,12 @@ backend=sqlite3
 query=folder:Inbox OR folder:Sent
 ```
 
-If you use a non-default notmuch configuration file, you can set it in your
-vimrc with:
+If you use a non-default notmuch configuration file, you should set the
+NOTMUCH_CONFIG environment variable (see notmuch man page).  This can even be
+done inside the vimrc file, with:
 
 ```vim
-let g:notmuchconfig = "~/.notmuch-config-custom"
+let $NOTMUCH_CONFIG = expand("~/.notmuch-config-custom")
 ```
 
 In your favorite mail filter program, add a rule such as (for procmail), so all
